@@ -44,9 +44,9 @@ pages/strategy-validation.jsx
           +-- Downloadable experiment record
 ```
 
-The main dashboard page creates simulated data locally and stores it in React state. The price chart generates a synthetic series from the simulated current price. The agent roster and discourse timeline display predefined objects. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. That prototype does not fetch data, upload the file, persist runs on a server, or submit orders; its assumptions and limitations are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md).
+The main dashboard page creates simulated data locally and stores it in React state. The price chart generates a synthetic series from the simulated current price. The persistent demo banner, agent-roster heading, and discourse heading identify these values and predefined objects as illustrative, not live or analytical output. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. That prototype does not fetch data, upload the file, persist runs on a server, or submit orders; its assumptions and limitations are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md).
 
-The command wheel currently displays an alert for a selected command; this does not establish that the corresponding analysis, research, or trading operation executes.
+The command wheel no longer uses browser alerts. It provides explicit demo-only status messages, scrolls to the illustrative discourse, or links to the local-file validation prototype. It does not connect to an analysis, vault, account-settings, language-model, performance, or trading service.
 
 ## 3. Technology Boundaries
 

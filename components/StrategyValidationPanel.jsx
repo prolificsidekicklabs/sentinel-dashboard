@@ -339,7 +339,7 @@ export default function StrategyValidationPanel() {
             <h2 className="text-lg font-semibold">2. Explicit strategy &amp; assumptions</h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Signals use completed daily closes; normal entries and exits fill at the next daily open. Any position still open at a segment boundary is instead estimated-liquidated at that segment’s final close with modeled costs.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div id="cost-assumptions" className="grid gap-3 scroll-mt-6 sm:grid-cols-2">
             <Field label="Fast SMA (bars)" name="fastPeriod" type="number" min="2" step="1" value={form.fastPeriod} onChange={updateField} />
             <Field label="Slow SMA (bars)" name="slowPeriod" type="number" min="3" step="1" value={form.slowPeriod} onChange={updateField} />
             <Field label="Starting capital" name="startingCapital" type="number" min="0.01" step="any" value={form.startingCapital} onChange={updateField} />

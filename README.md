@@ -27,6 +27,7 @@ The reviewed source includes:
 |---|---|
 | `pages/index.jsx` | Dashboard composition, local state, and simulated data initialization |
 | `pages/strategy-validation.jsx` | Separate research-only route for user-supplied historical data |
+| `components/DemoModeBanner.jsx` | Persistent warning that generated market and decision content is simulated |
 | `components/PriceChart.jsx` | D3-based price chart and market-state display |
 | `components/AgentRoster.jsx` | Analytical-agent opinion cards |
 | `components/DiscourseTimeline.jsx` | Timeline of opinions, challenges, agreements, and decisions |
@@ -38,6 +39,8 @@ The reviewed source includes:
 | `lib/strategy-validation.js` | Deterministic daily-bar SMA crossover backtest and data validation |
 
 The interface uses Next.js, React, Tailwind CSS, D3, and Framer Motion.
+
+The primary dashboard is an explicitly labeled simulated demo: its prices, indicators, opinions, risk labels, and `BLOCK` verdict are random or hard-coded examples, not a live feed or risk decision. Command-menu actions provide demo feedback, scroll to the example discourse, or navigate to the research prototype; they do not call backend services.
 
 The repository also includes a **research-only Strategy Validation Engine prototype** at `/strategy-validation`. It runs a fixed long-only, equity-style SMA crossover against user-supplied daily OHLCV CSV, models next-open fills and configurable transaction costs, compares a chronological holdout against buy-and-hold, and exports a reproducible JSON experiment record. It is not connected to a market-data provider or any trading/execution service. See the [prototype methodology and limitations](docs/STRATEGY_VALIDATION_ENGINE.md).
 
@@ -110,7 +113,7 @@ npm test
 npm run build
 ```
 
-**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all 13 component/engine tests, and the production build passed. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the exact security-audit status.
+**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all 15 component/engine tests, and the production build passed. GitHub Actions is configured to run these checks on pull requests to `main` and pushes to `main`; see `.github/workflows/ci.yml` and the PR status checks. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the exact security-audit status.
 
 ## 7. Architecture and Development Documentation
 

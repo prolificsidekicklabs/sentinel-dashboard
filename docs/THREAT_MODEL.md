@@ -41,6 +41,7 @@ The browser must be treated as an untrusted environment. Client-side state is no
 **Controls:**
 
 - Display a persistent simulation indicator in demo mode.
+- The dashboard now labels its random/hard-coded price examples, risk labels, opinions, and verdict as simulated; this client-side warning does not authenticate data or enforce any real control.
 - Include source and timestamp information.
 - Enforce freshness thresholds server-side.
 - Mark stale or invalid data visibly.

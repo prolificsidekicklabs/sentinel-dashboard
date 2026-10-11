@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import DemoModeBanner from '../components/DemoModeBanner'
 import AgentRoster from '../components/AgentRoster'
 import PriceChart from '../components/PriceChart'
 import DiscourseTimeline from '../components/DiscourseTimeline'
@@ -15,6 +16,7 @@ import EventRail from '../components/EventRail'
 export default function Home() {
   const [focusMode, setFocusMode] = useState(false)
   const [commandWheelOpen, setCommandWheelOpen] = useState(false)
+  const [commandStatus, setCommandStatus] = useState('')
   const [marketData, setMarketData] = useState(null)
   const [sentinelResult, setSentinelResult] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -134,8 +136,8 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Sentinel Dashboard</title>
-        <meta name="description" content="Sentinel Trading Intelligence" />
+        <title>Sentinel Dashboard Demo</title>
+        <meta name="description" content="Simulated Sentinel dashboard demo; not live market data or real analysis." />
       </Head>
 
       <div className="dashboard-container min-h-screen bg-gray-50 p-4 dark:bg-gray-900">
@@ -144,6 +146,13 @@ export default function Home() {
             Strategy Validation Prototype
           </Link>
         </div>
+        <DemoModeBanner />
+        {commandStatus && (
+          <div role="status" aria-live="polite" className="mb-4 flex items-start justify-between gap-4 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-950 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-100">
+            <p>{commandStatus}</p>
+            <button type="button" className="shrink-0 font-semibold underline" onClick={() => setCommandStatus('')}>Dismiss</button>
+          </div>
+        )}
         <RiskGlow riskLevel={riskLevel} />
 
         <div className="main-content mb-16 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -166,7 +175,8 @@ export default function Home() {
           <motion.div
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="discourse-section lg:col-span-3"
+            id="agent-discourse"
+            className="discourse-section scroll-mt-4 lg:col-span-3"
           >
             <DiscourseTimeline log={sentinelResult.discourse_log} />
           </motion.div>
@@ -183,9 +193,15 @@ export default function Home() {
           />
         )}
 
-        {commandWheelOpen && <CommandWheel onClose={() => setCommandWheelOpen(false)} />}
+        {commandWheelOpen && (
+          <CommandWheel
+            onClose={() => setCommandWheelOpen(false)}
+            onStatusMessage={setCommandStatus}
+          />
+        )}
 
         <button
+          type="button"
           onClick={() => setFocusMode(!focusMode)}
           className="focus-toggle fixed bottom-4 right-20 rounded-full bg-gray-800 px-4 py-2 text-white shadow-lg transition hover:bg-gray-700"
         >
@@ -193,6 +209,7 @@ export default function Home() {
         </button>
 
         <button
+          type="button"
           onClick={() => setCommandWheelOpen(true)}
           className="command-wheel-toggle fixed bottom-4 right-4 rounded-full bg-gray-800 px-4 py-2 text-white shadow-lg transition hover:bg-gray-700"
         >

@@ -45,7 +45,7 @@ const AgentCard = ({ agent }) => {
 export default function AgentRoster({ agents }) {
   return (
     <div className="agent-roster grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-      <h2 className="col-span-full text-xl font-bold mb-4">Analytical Agents</h2>
+      <h2 className="col-span-full text-xl font-bold mb-4">Simulated Agent Opinions</h2>
       {agents.map((agent, index) => (
         <AgentCard key={index} agent={agent} />
       ))}

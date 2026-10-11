@@ -63,7 +63,11 @@ npm run start
 
 Next.js 16 removed `next lint`; linting now runs through ESLint directly. Unconfigured Storybook and unused Husky/lint-staged scripts and dependencies were removed because no stories, Storybook configuration, hooks, or lint-staged rules existed in the repository.
 
-## 6. Verification Run (2026-10-11)
+## 6. Continuous Integration
+
+`.github/workflows/ci.yml` runs `npm ci`, lint, type-check, tests, and the production build on pull requests targeting `main` and pushes to `main`, using Node.js 24. Local results do not guarantee that a hosted workflow is enabled or passes; check the pull request's status checks.
+
+## 7. Verification Run (2026-10-11)
 
 Commands were run against the committed package manifest and lockfile on Node.js `24.19.0` and npm `11.17.0`.
 
@@ -72,7 +76,7 @@ Commands were run against the committed package manifest and lockfile on Node.js
 | `npm ci` | Passed; installed the committed lockfile. npm reported allow-scripts and ESLint peer-dependency warnings, but no install failure. |
 | `npm run lint` | Passed with ESLint 10.12.0 and `eslint-config-next` 16.4.0. |
 | `npm run type-check` | Passed; TypeScript checks the repository's JavaScript and JSX files, including the D3 datum and Motion animation props. |
-| `npm test` | Passed; 13 tests total: three server-rendered component tests and ten strategy-engine tests. |
+| `npm test` | Passed; 15 tests total: five server-rendered component tests and ten strategy-engine tests. |
 | `npm run build` | Passed; Next.js 16.4.0 generated the production build. The build warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. |
 | `npm audit --omit=dev` | Passed with zero reported production dependency vulnerabilities. |
 | `npm audit` | Reports 5 high, 0 moderate, 0 low, and 0 critical findings, stemming from `braces@3.0.3` in the `eslint-config-next` development dependency path. The Tailwind 3 dependency path is removed. |
@@ -83,15 +87,19 @@ The production dependency audit is clean, but Next.js has announced another secu
 
 Tailwind CSS 4.3 is configured through `@tailwindcss/postcss` and the CSS `@import`/`@theme` directives in `styles/globals.css`; the obsolete JavaScript Tailwind config was removed. The browser target intentionally requires Firefox 128+ (plus Chrome 111+, Edge 111+, and Safari 16.4+). See the [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide), [PostCSS installation guide](https://tailwindcss.com/docs/installation/using-postcss), and [dark-mode guide](https://tailwindcss.com/docs/dark-mode).
 
-## 7. Source Layout
+## 8. Source Layout
 
 ```text
+.github/
+  workflows/
+    ci.yml
 pages/
   index.jsx
   strategy-validation.jsx
 components/
   AgentRoster.jsx
   CommandWheel.jsx
+  DemoModeBanner.jsx
   DiscourseTimeline.jsx
   EventRail.jsx
   FocusMode.jsx
@@ -121,7 +129,7 @@ docs/
   CONTRIBUTING.md
 ```
 
-## 8. Data and Component Contracts
+## 9. Data and Component Contracts
 
 Current components accept JavaScript objects through props. For example, `PriceChart` expects a market-data object, while `AgentRoster` expects an array of agent opinion objects. The `type-check` script parses and checks these JS/JSX sources using TypeScript's `allowJs` and `checkJs` options; it does not turn them into a fully typed TypeScript application.
 
@@ -137,7 +145,7 @@ Before replacing simulated data with a provider:
 
 Do not treat a numeric value as a valid market price merely because it can be rendered.
 
-## 9. Development Workflow
+## 10. Development Workflow
 
 1. Create a branch from the current default branch.
 2. Make one logically scoped change.
@@ -158,11 +166,11 @@ Do not treat a numeric value as a valid market price merely because it can be re
 
 Run only commands supported by the actual repository configuration; do not assume a command passes because it is listed in the manifest.
 
-## 10. Testing Layers
+## 11. Testing Layers
 
 ### Current component tests
 
-`npm test` uses Node's built-in `node:test` runner with `tsx` to render selected components to static markup. The three component tests check agent opinion content, Focus Mode market data/opinion output and class correctness, and discourse-event rendering. They are a small regression baseline, not full DOM, browser, or end-to-end coverage.
+`npm test` uses Node's built-in `node:test` runner with `tsx` to render selected components to static markup. The five component tests check the explicit synthetic-data warning, simulated agent/discourse labels, command-menu demo messaging and local links, Focus Mode market data/opinion output, and basic component rendering. They are a small regression baseline, not full DOM, browser, or end-to-end coverage.
 
 ### Strategy engine unit tests
 
@@ -176,7 +184,7 @@ Ten pure-engine tests cover strict CSV quoting/column/date rules, OHLC and direc
 - **End-to-end tests:** loading, errors, stale data, keyboard navigation, and responsive layout.
 - **Safety tests:** verify that missing data, stale data, rejected assessments, denied authorization, and risk-limit breaches cannot be represented as approval.
 
-## 11. Known Limitations and Follow-Ups
+## 12. Known Limitations and Follow-Ups
 
 - `FocusMode` still presents `data.agents[0]`; it does not let a user select another agent.
 - `CommandWheel` still uses browser alerts for placeholder commands; replace these before building production workflows.
@@ -186,7 +194,7 @@ Ten pure-engine tests cover strict CSV quoting/column/date rules, OHLC and direc
 - The full npm audit retains the development-only `braces@3.0.3` advisory described above. Production dependencies have no reported audit findings as of this verification.
 - Next.js announced a further security release for October 14, 2026; rerun audits and update after its advisories and patched versions are available.
 
-## 12. Definition of Done
+## 13. Definition of Done
 
 A change is complete when:
 

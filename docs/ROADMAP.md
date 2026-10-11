@@ -32,15 +32,15 @@ Work items:
 - [ ] Fix remaining rendering and data-shape issues.
 - [x] Configure and validate lint, test, type-check, and build scripts.
 - [x] Add initial automated component tests.
-- [ ] Clearly label simulated data and decisions in the UI.
-- [ ] Replace placeholder command alerts with explicit demo actions.
+- [x] Clearly label simulated data and decisions in the UI.
+- [x] Replace placeholder command alerts with explicit demo actions.
 - [ ] Establish CI checks.
 
 **Exit criteria:**
 
 - [x] The application installs and builds reproducibly from its lockfile.
 - [x] Selected core dashboard components render under automated tests.
-- [ ] Demo mode is unambiguously identified in the UI.
+- [x] Demo mode is unambiguously identified in the UI.
 - [x] Known issues and the supported Node.js runtime are documented.
 
 ## 4. Phase 1 — Define the Domain and Data Contracts

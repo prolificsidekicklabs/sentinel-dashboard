@@ -39,7 +39,7 @@ const DiscourseEvent = ({ event }) => {
 export default function DiscourseTimeline({ log }) {
   return (
     <div className="discourse-timeline p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-      <h2 className="text-xl font-bold mb-4">Agent Discourse</h2>
+      <h2 className="text-xl font-bold mb-4">Simulated Agent Discourse</h2>
       <div className="space-y-2 max-h-96 overflow-y-auto">
         {log.map((event, index) => (
           <DiscourseEvent key={index} event={event} />
