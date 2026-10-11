@@ -10,6 +10,11 @@ import CommandWheel from '../components/CommandWheel'
 import RiskGlow from '../components/RiskGlow'
 import EventRail from '../components/EventRail'
 import { motion } from 'framer-motion'
+import {
+  DEMO_AGENT_OPINIONS,
+  DEMO_DISCOURSE_LOG,
+  DEMO_MARKET_STATE,
+} from '../lib/demo-data'
 
 export default function Home() {
   const [focusMode, setFocusMode] = useState(false)
@@ -21,44 +26,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Mock data for demo
-  const mockMarketState = {
-    timestamp: new Date().toISOString(),
-    instrument: "SPY",
-    price: 450.0 + Math.random() * 10 - 5,
-    regime: Math.random() > 0.7 ? "high_volatility" : Math.random() > 0.5 ? "trending" : "mean_reverting",
-    indicators: {
-      rsi: 50 + Math.random() * 40,
-      macd: { line: Math.random() * 2 - 1, signal: Math.random() * 2 - 1, histogram: Math.random() * 0.5 - 0.25 },
-      bollinger_bands: { upper: 460 + Math.random() * 5, middle: 450 + Math.random() * 5, lower: 440 + Math.random() * 5 }
-    },
-    order_book: { bid_vol: 1000 + Math.floor(Math.random() * 500), ask_vol: 1000 + Math.floor(Math.random() * 500), spread: 0.1 + Math.random() * 0.8 },
-    sentiment: { bullish: Math.random(), bearish: Math.random() },
-    fundamentals: { pe_ratio: 15 + Math.random() * 10, earnings_date: "2026-04-15" }
-  }
-
-  const mockAgentOpinions = [
-    { agent_name: "TECH", opinion: "RED", confidence: 0.9, rationale: "RSI indicates overbought conditions.", data_used: ["indicators.rsi", "indicators.macd"] },
-    { agent_name: "MACRO", opinion: "GREEN", confidence: 0.8, rationale: "Fed policy remains accommodative.", data_used: ["fundamentals.pe_ratio"] },
-    { agent_name: "MICRO", opinion: "RED", confidence: 0.85, rationale: "Low liquidity detected.", data_used: ["order_book.spread"] },
-    { agent_name: "SENT", opinion: "GREEN", confidence: 0.75, rationale: "Bullish sentiment.", data_used: ["sentiment.bullish"] },
-    { agent_name: "FUND", opinion: "GREEN", confidence: 0.9, rationale: "Fair valuation.", data_used: ["fundamentals.pe_ratio"] }
-  ]
-
-  const mockDiscourseLog = [
-    { type: "OPINION", agent: "TECH", opinion: "RED", timestamp: new Date().toISOString() },
-    { type: "CHALLENGE", agent: "MACRO", target: "TECH", message: "Fed data contradicts RSI.", timestamp: new Date().toISOString() },
-    { type: "AGREE", agent: "FUND", target: "TECH", message: "P/E supports bearish stance.", timestamp: new Date().toISOString() },
-    { type: "DECISION", verdict: "BLOCK", critic_notes: "Consensus for RED.", timestamp: new Date().toISOString() }
-  ]
-
   // Simulate loading
   useEffect(() => {
     const timer = setTimeout(() => {
-      setMarketData(mockMarketState)
+      setMarketData(DEMO_MARKET_STATE)
       setSentinelResult({
-        agent_opinions: mockAgentOpinions,
-        discourse_log: mockDiscourseLog,
+        agent_opinions: DEMO_AGENT_OPINIONS,
+        discourse_log: DEMO_DISCOURSE_LOG,
         decision: "BLOCK"
       })
       setLoading(false)
@@ -78,6 +52,10 @@ export default function Home() {
 
       <div className="dashboard-container min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
         <RiskGlow riskLevel={riskLevel} />
+
+        <div role="status" className="mb-4 rounded border border-amber-400 bg-amber-50 px-4 py-2 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100">
+          Demo mode: synthetic fixed sample data only. This is not live market data or a trading signal.
+        </div>
 
         <div className="main-content grid grid-cols-1 lg:grid-cols-3 gap-4 mb-16">
           <motion.div
