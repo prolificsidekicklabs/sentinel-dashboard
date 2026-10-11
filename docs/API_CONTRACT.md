@@ -1,0 +1,258 @@
+# Sentinel API Contract
+
+## 1. Status
+
+**Proposed contract — not an implemented or verified API.**
+
+The reviewed dashboard generates demo data in the browser. This document defines a suggested contract for a future application service. Endpoint paths, schemas, status codes, and authentication requirements must be finalized before implementation.
+
+## 2. Design Principles
+
+- Validate all input at the API boundary.
+- Use explicit schema versions.
+- Keep raw provider payloads separate from normalized market state.
+- Include timestamps, source identity, and data-quality status.
+- Return traceable assessment and decision identifiers.
+- Make analysis requests idempotent where retries could create duplicate work.
+- Never allow the browser to override server-side risk policy.
+- Keep broker credentials and provider secrets server-side.
+- Do not expose an execution endpoint until authorization and risk controls exist.
+
+## 3. Proposed Base Path
+
+```text
+/api/v1
+```
+
+All paths below are proposals.
+
+## 4. Market State
+
+### `GET /api/v1/market-state/{instrument}`
+
+Returns the most recent validated market snapshot for an instrument.
+
+Example response:
+
+```json
+{
+  "schema_version": "1.0",
+  "snapshot_id": "snap_example_001",
+  "instrument": "SPY",
+  "observed_at": "2026-10-11T14:30:00Z",
+  "received_at": "2026-10-11T14:30:01Z",
+  "source": "example-provider",
+  "quality_status": "valid",
+  "staleness_ms": 1000,
+  "price": {
+    "value": 650.25,
+    "currency": "USD"
+  },
+  "indicators": {
+    "rsi": 54.2
+  },
+  "regime": {
+    "label": "trending",
+    "method_version": "1.0"
+  }
+}
+```
+
+This is an illustrative schema, not live market data.
+
+Possible quality states:
+
+- `valid`
+- `stale`
+- `incomplete`
+- `invalid`
+- `unavailable`
+
+Clients must not convert a non-valid state into a valid signal.
+
+## 5. Request an Analysis
+
+### `POST /api/v1/analyses`
+
+Submits a request for analysis of a validated market snapshot.
+
+Example request:
+
+```json
+{
+  "schema_version": "1.0",
+  "instrument": "SPY",
+  "snapshot_id": "snap_example_001",
+  "analysis_profile": "default",
+  "requested_agents": [
+    "TECH",
+    "MACRO",
+    "MICRO",
+    "SENT",
+    "FUND"
+  ]
+}
+```
+
+Example response:
+
+```json
+{
+  "schema_version": "1.0",
+  "analysis_id": "analysis_example_001",
+  "status": "accepted",
+  "created_at": "2026-10-11T14:30:02Z"
+}
+```
+
+`accepted` means the request was accepted for processing. It does not mean the analysis completed or that a trade was approved.
+
+Recommended request headers:
+
+```text
+Content-Type: application/json
+Authorization: Bearer <access-token>
+Idempotency-Key: <unique-request-key>
+```
+
+The authentication mechanism must be selected and implemented before deployment.
+
+## 6. Retrieve an Analysis
+
+### `GET /api/v1/analyses/{analysis_id}`
+
+Example response:
+
+```json
+{
+  "schema_version": "1.0",
+  "analysis_id": "analysis_example_001",
+  "status": "completed",
+  "snapshot_id": "snap_example_001",
+  "assessments": [
+    {
+      "assessment_id": "assessment_example_001",
+      "agent_id": "TECH",
+      "agent_version": "1.0",
+      "opinion": "RED",
+      "confidence": 0.72,
+      "rationale": "Illustrative example only.",
+      "evidence_refs": [
+        "snapshot:snap_example_001"
+      ],
+      "limitations": [
+        "Example payload; not a real analytical result."
+      ]
+    }
+  ],
+  "created_at": "2026-10-11T14:30:02Z",
+  "completed_at": "2026-10-11T14:30:03Z"
+}
+```
+
+The values above are fictional examples for contract design.
+
+## 7. Decision Evaluation
+
+### `POST /api/v1/decisions/evaluate`
+
+Requests a decision evaluation under a named policy. This endpoint must not itself place a broker order.
+
+Example request:
+
+```json
+{
+  "schema_version": "1.0",
+  "analysis_id": "analysis_example_001",
+  "policy_id": "trading-risk-policy",
+  "policy_version": "1.0"
+}
+```
+
+Example response:
+
+```json
+{
+  "schema_version": "1.0",
+  "decision_id": "decision_example_001",
+  "verdict": "BLOCK",
+  "reasons": [
+    "Illustrative policy result."
+  ],
+  "policy_id": "trading-risk-policy",
+  "policy_version": "1.0",
+  "created_at": "2026-10-11T14:30:04Z",
+  "execution_authorized": false
+}
+```
+
+`execution_authorized` must be determined by server-side governance and authorization. It must never be inferred from agent consensus or a client-controlled field.
+
+## 8. Event History
+
+### `GET /api/v1/analyses/{analysis_id}/events`
+
+Returns a chronologically ordered event history.
+
+Proposed event types include:
+
+- `ANALYSIS_REQUESTED`
+- `SNAPSHOT_VALIDATED`
+- `ASSESSMENT_CREATED`
+- `CHALLENGE_RECORDED`
+- `DECISION_EVALUATED`
+- `POLICY_BLOCKED`
+- `ANALYSIS_FAILED`
+
+Events should include unique IDs, timestamps, actor identities, and references to relevant records.
+
+## 9. Error Format
+
+Use a consistent error envelope.
+
+```json
+{
+  "error": {
+    "code": "MARKET_DATA_STALE",
+    "message": "The requested market snapshot is stale.",
+    "request_id": "req_example_001",
+    "retryable": false
+  }
+}
+```
+
+Suggested HTTP status codes:
+
+| Status | Meaning |
+|---|---|
+| `400` | Malformed request |
+| `401` | Missing or invalid authentication |
+| `403` | Authenticated caller lacks permission |
+| `404` | Resource not found |
+| `409` | Conflicting state or idempotency conflict |
+| `422` | Valid JSON but invalid domain input |
+| `429` | Rate limit exceeded |
+| `500` | Unexpected server error |
+| `503` | Required dependency unavailable |
+
+Avoid returning stack traces, secrets, provider credentials, or internal security details.
+
+## 10. Security and Reliability Requirements
+
+- Authenticate and authorize every protected request.
+- Validate identifiers and all request fields.
+- Apply request size limits and rate limits.
+- Use server-side policy evaluation.
+- Enforce freshness requirements for market data.
+- Persist decision and audit events durably.
+- Use idempotency for retried operations.
+- Propagate correlation IDs across services.
+- Apply timeouts and bounded retries to external dependencies.
+- Fail closed for any action that could increase financial exposure.
+- Separate read-only analytics permissions from any future execution permissions.
+
+## 11. API Acceptance Criteria
+
+The contract is ready for implementation only after schemas, authentication, authorization, retention, error semantics, and compatibility policy are approved.
+
+Each endpoint must have contract tests covering valid requests, malformed input, missing resources, stale data, unauthorized access, dependency failure, and retry behavior.
