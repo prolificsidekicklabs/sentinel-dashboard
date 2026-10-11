@@ -34,7 +34,7 @@ Work items:
 - [x] Add initial automated component tests.
 - [x] Clearly label simulated data and decisions in the UI.
 - [x] Replace placeholder command alerts with explicit demo actions.
-- [ ] Establish CI checks.
+- [x] Establish CI checks.
 
 **Exit criteria:**
 
