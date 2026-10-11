@@ -55,6 +55,7 @@ The browser must be treated as an untrusted environment. Client-side state is no
 - Validate schemas and instrument identifiers.
 - Check timestamp ordering and expected ranges.
 - Detect duplicate, missing, or out-of-order observations.
+- The browser-only strategy prototype applies file-size, daily ordering, positive-price, and OHLC-consistency checks to user-selected CSV; these are structural checks only and do not authenticate the source or verify corporate-action adjustments, completeness, or tradability.
 - Record source identity and ingestion time.
 - Quarantine anomalous input.
 - Define behavior for provider outages.

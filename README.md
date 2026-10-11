@@ -26,6 +26,7 @@ The reviewed source includes:
 | Component | Current purpose |
 |---|---|
 | `pages/index.jsx` | Dashboard composition, local state, and simulated data initialization |
+| `pages/strategy-validation.jsx` | Separate research-only route for user-supplied historical data |
 | `components/PriceChart.jsx` | D3-based price chart and market-state display |
 | `components/AgentRoster.jsx` | Analytical-agent opinion cards |
 | `components/DiscourseTimeline.jsx` | Timeline of opinions, challenges, agreements, and decisions |
@@ -33,8 +34,12 @@ The reviewed source includes:
 | `components/CommandWheel.jsx` | Animated command-wheel interface |
 | `components/EventRail.jsx` | Horizontal event stream |
 | `components/RiskGlow.jsx` | Visual risk-level indicator |
+| `components/StrategyValidationPanel.jsx` | Client-side CSV import, experiment form, metrics, and record export |
+| `lib/strategy-validation.js` | Deterministic daily-bar SMA crossover backtest and data validation |
 
 The interface uses Next.js, React, Tailwind CSS, D3, and Framer Motion.
+
+The repository also includes a **research-only Strategy Validation Engine prototype** at `/strategy-validation`. It runs a fixed long-only, equity-style SMA crossover against user-supplied daily OHLCV CSV, models next-open fills and configurable transaction costs, compares a chronological holdout against buy-and-hold, and exports a reproducible JSON experiment record. It is not connected to a market-data provider or any trading/execution service. See the [prototype methodology and limitations](docs/STRATEGY_VALIDATION_ENGINE.md).
 
 ## 3. What Is Not Yet Verified
 
@@ -105,7 +110,7 @@ npm test
 npm run build
 ```
 
-**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all three component tests, and the production build passed. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the exact security-audit status.
+**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all 13 component/engine tests, and the production build passed. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the exact security-audit status.
 
 ## 7. Architecture and Development Documentation
 
@@ -115,6 +120,7 @@ npm run build
 - [Deployment Guide](docs/DEPLOYMENT.md)
 - [Threat Model](docs/THREAT_MODEL.md)
 - [Product Roadmap](docs/ROADMAP.md)
+- [Strategy Validation Engine Prototype](docs/STRATEGY_VALIDATION_ENGINE.md)
 - [Contributing Guide](docs/CONTRIBUTING.md)
 
 The API, deployment architecture, threat controls, and roadmap describe proposed implementation direction unless explicitly identified as current code behavior.
@@ -125,9 +131,11 @@ This software is not represented as a validated investment adviser, broker, exec
 
 Simulated prices, agent outputs, confidence values, and risk labels must not be used to make actual trading decisions. Before any live-market use, implement and independently test data provenance, risk limits, authorization, monitoring, failure handling, and operational controls.
 
+The strategy-validation prototype's historical metrics are research-only and do not demonstrate an edge, authorize paper trading, or support live-trading decisions.
+
 ## 9. Documentation and Security Status
 
-The README and seven `docs/` guides provide the repository baseline. The code now has a committed lockfile and passing lint, type-check, component-test, and build checks. Deployment, API, security-control, and integration claims remain proposed or unverified until implemented and independently reviewed.
+The README and eight `docs/` guides provide the repository baseline. The code includes a research-only local-file validation prototype with explicit caveats; it has no verified edge, market-data provider, paper trading, or live execution. The repository has a committed lockfile and passing lint, type-check, component/engine tests, and build checks. Deployment, API, security-control, and integration claims remain proposed or unverified until implemented and independently reviewed.
 
 The production dependency audit (`npm audit --omit=dev`) reports no known vulnerabilities. The full development audit reports **5 high-severity findings** through the transitive `braces@3.0.3` dependency used by the Next.js ESLint plugin; the Tailwind 3 dependency path was removed in this migration. No patched npm release was available when checked; the upstream advisory is disputed ([upstream issue](https://github.com/micromatch/braces/issues/73)). Next.js has also announced another security update for October 14, 2026, but had not published affected-version details at the time of this review ([announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)). Re-run the audits and update dependencies when that release is available.
 

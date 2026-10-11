@@ -17,7 +17,7 @@
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "test": "tsx --test components/dashboard-components.test.jsx"
+    "test": "tsx --test components/dashboard-components.test.jsx lib/strategy-validation.test.js"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.0.5",

@@ -59,7 +59,7 @@ npm run start
 | `start` | Start the production server |
 | `lint` | Run the ESLint CLI with the Next.js Core Web Vitals config |
 | `type-check` | Run TypeScript over the JavaScript/JSX project (`allowJs` and `checkJs`) |
-| `test` | Run component tests with Node's built-in test runner and `tsx` |
+| `test` | Run component and strategy-engine tests with Node's built-in test runner and `tsx` |
 
 Next.js 16 removed `next lint`; linting now runs through ESLint directly. Unconfigured Storybook and unused Husky/lint-staged scripts and dependencies were removed because no stories, Storybook configuration, hooks, or lint-staged rules existed in the repository.
 
@@ -72,7 +72,7 @@ Commands were run against the committed package manifest and lockfile on Node.js
 | `npm ci` | Passed; installed the committed lockfile. npm reported allow-scripts and ESLint peer-dependency warnings, but no install failure. |
 | `npm run lint` | Passed with ESLint 10.12.0 and `eslint-config-next` 16.4.0. |
 | `npm run type-check` | Passed; TypeScript checks the repository's JavaScript and JSX files, including the D3 datum and Motion animation props. |
-| `npm test` | Passed; three server-rendered component tests cover agent cards, Focus Mode, and discourse events. |
+| `npm test` | Passed; 13 tests total: three server-rendered component tests and ten strategy-engine tests. |
 | `npm run build` | Passed; Next.js 16.4.0 generated the production build. The build warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. |
 | `npm audit --omit=dev` | Passed with zero reported production dependency vulnerabilities. |
 | `npm audit` | Reports 5 high, 0 moderate, 0 low, and 0 critical findings, stemming from `braces@3.0.3` in the `eslint-config-next` development dependency path. The Tailwind 3 dependency path is removed. |
@@ -88,6 +88,7 @@ Tailwind CSS 4.3 is configured through `@tailwindcss/postcss` and the CSS `@impo
 ```text
 pages/
   index.jsx
+  strategy-validation.jsx
 components/
   AgentRoster.jsx
   CommandWheel.jsx
@@ -96,7 +97,11 @@ components/
   FocusMode.jsx
   PriceChart.jsx
   RiskGlow.jsx
+  StrategyValidationPanel.jsx
   dashboard-components.test.jsx
+lib/
+  strategy-validation.js
+  strategy-validation.test.js
 styles/
   globals.css
 next.config.js
@@ -112,6 +117,7 @@ docs/
   DEPLOYMENT.md
   THREAT_MODEL.md
   ROADMAP.md
+  STRATEGY_VALIDATION_ENGINE.md
   CONTRIBUTING.md
 ```
 
@@ -156,7 +162,11 @@ Run only commands supported by the actual repository configuration; do not assum
 
 ### Current component tests
 
-`npm test` uses Node's built-in `node:test` runner with `tsx` to render selected components to static markup. The current tests check agent opinion content, Focus Mode market data/opinion output and class correctness, and discourse-event rendering. They are a small regression baseline, not full DOM, browser, or end-to-end coverage.
+`npm test` uses Node's built-in `node:test` runner with `tsx` to render selected components to static markup. The three component tests check agent opinion content, Focus Mode market data/opinion output and class correctness, and discourse-event rendering. They are a small regression baseline, not full DOM, browser, or end-to-end coverage.
+
+### Strategy engine unit tests
+
+Ten pure-engine tests cover strict CSV quoting/column/date rules, OHLC and direct-input validation, next-open entry/exit fills, terminal-close cost estimates, final-bar no-look-ahead behavior, out-of-sample isolation, deterministic identity, baseline/risk metrics (including flat/no-trade cases), and invalid configurations. These fixtures test software behavior only; they are not a market dataset and do not demonstrate financial performance. See the [Strategy Validation Engine Prototype guide](STRATEGY_VALIDATION_ENGINE.md) for the assumptions and omissions.
 
 ### Recommended next layers
 
@@ -171,6 +181,7 @@ Run only commands supported by the actual repository configuration; do not assum
 - `FocusMode` still presents `data.agents[0]`; it does not let a user select another agent.
 - `CommandWheel` still uses browser alerts for placeholder commands; replace these before building production workflows.
 - The market snapshot, chart series, agent opinions, and event log are synthetic. They are not live or investment-grade data.
+- The strategy-validation prototype consumes user-supplied daily bars, but does not authenticate or independently validate their source, corporate-action adjustments, or survivorship properties; its results do not establish a trading edge.
 - React 18 works with the current build but triggers a Next.js 16 deprecation warning; plan migration to React 19 before upgrading to Next.js 17.
 - The full npm audit retains the development-only `braces@3.0.3` advisory described above. Production dependencies have no reported audit findings as of this verification.
 - Next.js announced a further security release for October 14, 2026; rerun audits and update after its advisories and patched versions are available.

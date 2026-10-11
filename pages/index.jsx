@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Head from 'next/head'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import AgentRoster from '../components/AgentRoster'
 import PriceChart from '../components/PriceChart'
@@ -138,6 +139,11 @@ export default function Home() {
       </Head>
 
       <div className="dashboard-container min-h-screen bg-gray-50 p-4 dark:bg-gray-900">
+        <div className="mb-4 flex justify-end">
+          <Link href="/strategy-validation" className="rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">
+            Strategy Validation Prototype
+          </Link>
+        </div>
         <RiskGlow riskLevel={riskLevel} />
 
         <div className="main-content mb-16 grid grid-cols-1 gap-4 lg:grid-cols-3">

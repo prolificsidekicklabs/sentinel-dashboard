@@ -34,9 +34,17 @@ pages/index.jsx
           +-- RiskGlow
           +-- FocusMode
           +-- CommandWheel
+
+pages/strategy-validation.jsx
+    |
+    +-- User-selected historical daily CSV (browser-only)
+    +-- lib/strategy-validation.js
+          |
+          +-- SMA crossover backtest and buy-and-hold comparison
+          +-- Downloadable experiment record
 ```
 
-The main page creates simulated data locally and stores it in React state. The price chart generates a synthetic series from the simulated current price. The agent roster and discourse timeline display predefined objects.
+The main dashboard page creates simulated data locally and stores it in React state. The price chart generates a synthetic series from the simulated current price. The agent roster and discourse timeline display predefined objects. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. That prototype does not fetch data, upload the file, persist runs on a server, or submit orders; its assumptions and limitations are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md).
 
 The command wheel currently displays an alert for a selected command; this does not establish that the corresponding analysis, research, or trading operation executes.
 
@@ -50,7 +58,7 @@ The command wheel currently displays an alert for a selected command; this does 
 
 ### 3.2 Application layer
 
-**Current:** Dashboard state and simulated data initialization are located in `pages/index.jsx`.
+**Current:** Dashboard state and simulated data initialization are located in `pages/index.jsx`. The separate validation route and user interaction live in `pages/strategy-validation.jsx` and `components/StrategyValidationPanel.jsx`; the pure simulation functions live in `lib/strategy-validation.js`.
 
 **Future:** Move orchestration into explicit application services. A service should own one defined operation, such as requesting market state, submitting an analysis request, or retrieving an approved decision record.
 
@@ -62,7 +70,7 @@ The command wheel currently displays an alert for a selected command; this does 
 
 ### 3.4 Data layer
 
-**Current:** The reviewed dashboard initializes data in memory. No persistent database integration was established.
+**Current:** The dashboard initializes synthetic data in memory. The validation prototype processes a user-provided CSV in browser memory and downloads an experiment JSON record; no provider, server upload, or persistent database integration is established.
 
 **Future:** Separate raw market observations, normalized market state, analytical assessments, decisions, risk evaluations, and execution records. Maintain source identifiers and event timestamps.
 
@@ -227,7 +235,8 @@ The dashboard should consume governed records rather than become the authority f
 4. The simulated verdict is not evidence of a real risk engine.
 5. The command wheel uses browser alerts rather than application commands.
 6. Focus Mode and the main page should be checked for data-shape and rendering errors.
-7. The package manifest mixes framework and lint tooling versions that may not be compatible without adjustment.
+7. Next.js ESLint plugins still emit non-fatal ESLint 10 peer-range warnings during installation; lint currently passes, but this peer compatibility should be rechecked on upgrades.
+8. The strategy prototype's execution-cost assumptions are user-entered estimates, and its end-of-segment liquidation is a valuation convention rather than a guaranteed fill.
 
 ## 8. Architecture Acceptance Criteria
 

@@ -17,8 +17,9 @@ The reviewed repository contains:
 - A discourse timeline and event rail.
 - Risk visualization.
 - Focus Mode and a command-wheel interface.
+- A browser-only, research-grade SMA validation prototype that accepts user-supplied daily bars and exports run records.
 
-The reviewed files do not establish a production market-data service, durable analytical history, broker execution, or tested AEGIS Core integration.
+The validation prototype does not establish a strategy edge or complete independent strategy validation. The reviewed files do not establish a production market-data service, durable analytical history, broker execution, or tested AEGIS Core integration.
 
 ## 3. Phase 0 — Stabilize the Prototype
 
@@ -86,6 +87,8 @@ Work items:
 ## 6. Phase 3 — Evidence-Grounded Analytical Services
 
 **Objective:** Replace predefined agent opinions with reproducible analytical outputs.
+
+**Prototype status:** An initial client-side SMA crossover validator is implemented with basic CSV checks, next-open costed fills, a fixed chronological holdout, buy-and-hold comparison, risk summaries, and downloadable experiment records. This is a software prototype only; it does not complete this phase's evidence, provenance, robustness, or acceptance criteria.
 
 Work items:
 
