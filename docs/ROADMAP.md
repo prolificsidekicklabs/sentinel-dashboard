@@ -26,21 +26,21 @@ The reviewed files do not establish a production market-data service, durable an
 
 Work items:
 
-- Complete the repository documentation.
-- Validate dependency and framework compatibility.
-- Fix rendering and data-shape issues.
-- Validate lint, test, type-check, and build scripts.
-- Add automated component tests.
-- Clearly label simulated data and decisions.
-- Replace placeholder command alerts with explicit demo actions.
-- Establish a lockfile and CI checks.
+- [x] Complete the repository documentation baseline.
+- [x] Validate dependency and framework compatibility and establish a lockfile.
+- [ ] Fix remaining rendering and data-shape issues.
+- [x] Configure and validate lint, test, type-check, and build scripts.
+- [x] Add initial automated component tests.
+- [ ] Clearly label simulated data and decisions in the UI.
+- [ ] Replace placeholder command alerts with explicit demo actions.
+- [ ] Establish CI checks.
 
 **Exit criteria:**
 
-- The application installs and builds reproducibly.
-- Core dashboard components render under automated tests.
-- Demo mode is unambiguously identified.
-- Known issues and supported runtime versions are documented.
+- [x] The application installs and builds reproducibly from its lockfile.
+- [x] Selected core dashboard components render under automated tests.
+- [ ] Demo mode is unambiguously identified in the UI.
+- [x] Known issues and the supported Node.js runtime are documented.
 
 ## 4. Phase 1 — Define the Domain and Data Contracts
 

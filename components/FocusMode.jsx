@@ -48,7 +48,7 @@ export default function FocusMode({ data, onClose }) {
             <div className="space-y-2">
               <div>
                 <span className="font-medium">Opinion:</span>
-                <span className={`ml-2 px-2 py-1 rounded text-xs $
+                <span className={`ml-2 px-2 py-1 rounded text-xs
                   ${activeAgent.opinion === 'GREEN' ? 'bg-green-100 text-green-800' :
                    activeAgent.opinion === 'RED' ? 'bg-red-100 text-red-800' :
                    'bg-yellow-100 text-yellow-800'}`}>

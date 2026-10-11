@@ -41,7 +41,11 @@ export default function PriceChart({ data }) {
     chart.append('g').call(d3.axisLeft(y))
 
     // Add price line
-    const line = d3.line().x(d => x(d.date)).y(d => y(d.price))
+    const line = /** @type {import('d3-shape').Line<{ date: Date; price: number }>} */ (
+      d3.line()
+    )
+      .x(d => x(d.date))
+      .y(d => y(d.price))
     chart.append('path')
       .datum(priceData)
       .attr('fill', 'none')

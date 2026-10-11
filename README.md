@@ -4,7 +4,7 @@
 
 Sentinel Dashboard is a React-based interface for exploring market-state information, analytical agent opinions, agent discourse, risk visualization, and decision-oriented trading workflows.
 
-> **Current implementation status:** The reviewed dashboard uses simulated market data and predefined agent opinions. It is a UI prototype, not a verified live-market intelligence platform or an execution-ready trading system.
+> **Current implementation status:** The dashboard uses simulated market data and predefined agent opinions. It is a UI prototype, not a verified live-market intelligence platform or an execution-ready trading system.
 
 ## 1. Project Goals
 
@@ -53,31 +53,39 @@ The presence of simulated opinions and a `BLOCK` verdict does not establish that
 
 ## 4. Technology Stack
 
-The package manifest declares:
+The committed manifest and lockfile establish this baseline:
 
-- Next.js `16.0.0`
-- React `18.2.x`
+- Next.js `16.4.0`
+- React `18.x` (the current build emits a deprecation warning; Next.js 16 recommends upgrading to React 19 before Next.js 17)
 - Tailwind CSS `3.4.x`
-- D3 `7.8.x`
+- D3 `7.x`
 - Framer Motion `11.x`
-- TypeScript `5.3.x`
-- Jest `29.7.x`
-- Storybook `7.6.x`
+- TypeScript `5.x`, configured to check the JavaScript/JSX source
+- ESLint `10.x` with `eslint-config-next` `16.4.0`
+- Node's built-in test runner with `tsx`
+- Node.js `^20.19.0 || ^22.13.0 || >=24.0.0` (declared in `package.json`)
 
-The declared versions and scripts should be validated together before relying on development, lint, type-check, test, or build commands.
+Storybook scripts and dependencies were removed because the repository had no Storybook configuration or stories. The unused Husky/lint-staged setup was also removed.
+
+Tailwind CSS 4 is not enabled yet: its published browser floor includes Firefox 128+, while the Next.js 16 default includes Firefox 111+. The project preserves the current framework browser baseline until that compatibility choice is confirmed. See the [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide) and [Next.js supported browsers](https://nextjs.org/docs/architecture/supported-browsers).
 
 ## 5. Prerequisites
 
-Install a supported Node.js LTS version compatible with the selected Next.js release, plus npm. Confirm the project's `engines` field and Next.js compatibility requirements once dependency and runtime policy have been established.
+Install Node.js 20.19.x, 22.13.x or later, or 24.x or later, plus npm. The `engines` field records the supported ranges. Then verify the versions:
+
+```bash
+node --version
+npm --version
+```
 
 ## 6. Local Setup
 
-Clone the repository and install its dependencies:
+Clone the repository and install the exact dependency tree from the committed lockfile:
 
 ```bash
 git clone https://github.com/prolificsidekicklabs/sentinel-dashboard.git
 cd sentinel-dashboard
-npm install
+npm ci
 ```
 
 Start the development server:
@@ -88,17 +96,16 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Run the available project scripts:
+Run the supported checks:
 
 ```bash
-npm run build
-npm run start
-npm test
-npm run type-check
 npm run lint
+npm run type-check
+npm test
+npm run build
 ```
 
-**Verification status:** These commands were attempted on 2026-10-11 and currently fail; see the [Development Guide](docs/DEVELOPMENT.md) for the exact results and outstanding configuration issues.
+**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all three component tests, and the production build passed. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the exact security-audit status.
 
 ## 7. Architecture and Development Documentation
 
@@ -118,8 +125,10 @@ This software is not represented as a validated investment adviser, broker, exec
 
 Simulated prices, agent outputs, confidence values, and risk labels must not be used to make actual trading decisions. Before any live-market use, implement and independently test data provenance, risk limits, authorization, monitoring, failure handling, and operational controls.
 
-## 9. Documentation Status
+## 9. Documentation and Security Status
 
-This documentation is a proposed repository baseline prepared from a source review. Actual local verification attempts and their results are recorded in [the Development Guide](docs/DEVELOPMENT.md). The application is not build- or test-verified: the documented lint, type-check, test, and build commands currently fail, and deployment, security, and integration claims remain unverified.
+The README and seven `docs/` guides provide the repository baseline. The code now has a committed lockfile and passing lint, type-check, component-test, and build checks. Deployment, API, security-control, and integration claims remain proposed or unverified until implemented and independently reviewed.
+
+The production dependency audit (`npm audit --omit=dev`) reports no known vulnerabilities. The full development audit still reports **7 high-severity findings** through the transitive `braces@3.0.3` dependency used by Tailwind CSS 3 and the Next.js ESLint plugin. No patched npm release was available when checked; the upstream advisory is disputed ([upstream issue](https://github.com/micromatch/braces/issues/73)). Next.js has also announced another security update for October 14, 2026, but had not published affected-version details at the time of this review ([announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)). Re-run the audits and update dependencies when that release is available.
 
 Last reviewed: 2026-10-11.

@@ -2,20 +2,20 @@
 
 ## 1. Status and Scope
 
-This is a proposed deployment guide. The reviewed source does not establish a verified production deployment, hosting provider, backend service, database, or CI/CD pipeline.
+This remains a proposed deployment guide. The repository's install/build/check baseline is verified, but no production deployment, hosting provider, backend service, database, or CI/CD pipeline is established.
 
 ## 2. Current Application Profile
 
 The package manifest identifies a Next.js application with development, build, and production-start scripts.
 
-A minimal deployment must first establish that the current dependencies install successfully and that the production build completes.
+`npm ci`, lint, type-check, tests, and the production build passed on Node.js `24.19.0` and npm `11.17.0`. Repeat these checks on the target host and verify its runtime configuration before deployment.
 
 ## 3. Pre-Deployment Checklist
 
-- [ ] Confirm supported Node.js and npm versions.
-- [ ] Review dependency compatibility.
-- [ ] Commit the approved lockfile.
-- [ ] Run lint, type-check, tests, and production build.
+- [x] Confirm the supported Node.js range and record the tested npm version.
+- [x] Review dependency compatibility and document known audit findings.
+- [x] Commit the approved lockfile.
+- [x] Run lint, type-check, tests, and production build.
 - [ ] Resolve known rendering and data-shape issues.
 - [ ] Verify responsive layout and accessibility.
 - [ ] Confirm demo data is clearly labeled.
@@ -33,7 +33,7 @@ npm run build
 npm run start
 ```
 
-Use `npm ci` only after confirming that the committed lockfile is present and compatible with the project manifest.
+The repository commits `package-lock.json`; `npm ci` installs that exact dependency tree and fails if the lockfile and manifest are out of sync. Regenerate the lockfile intentionally alongside dependency changes.
 
 ## 5. Hosting Options
 

@@ -12,7 +12,7 @@ export default function EventRail({ events }) {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
-            className={`px-3 py-1 rounded-full text-xs flex-shrink-0 $
+            className={`px-3 py-1 rounded-full text-xs flex-shrink-0
               ${event.type === 'OPINION' ? 'bg-blue-500' :
                event.type === 'CHALLENGE' ? 'bg-yellow-500' :
                event.type === 'AGREE' ? 'bg-green-500' :
