@@ -73,7 +73,7 @@ export default function PriceChart({ data }) {
   }, [data])
 
   return (
-    <div className="price-chart p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+    <div className="price-chart p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
       <h2 className="text-xl font-bold mb-4">Market Data: {data.instrument}</h2>
       <svg ref={svgRef} className="w-full h-96"></svg>
       <div className="mt-2 flex justify-between text-sm">

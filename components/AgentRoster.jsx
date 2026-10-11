@@ -33,7 +33,7 @@ const AgentCard = ({ agent }) => {
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
         {agent.data_used.map((data, index) => (
-          <span key={index} className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-xs">
+          <span key={index} className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-sm text-xs">
             {data}
           </span>
         ))}
@@ -44,7 +44,7 @@ const AgentCard = ({ agent }) => {
 
 export default function AgentRoster({ agents }) {
   return (
-    <div className="agent-roster grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+    <div className="agent-roster grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
       <h2 className="col-span-full text-xl font-bold mb-4">Analytical Agents</h2>
       {agents.map((agent, index) => (
         <AgentCard key={index} agent={agent} />

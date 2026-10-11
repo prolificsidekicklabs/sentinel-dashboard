@@ -10,12 +10,15 @@ The package manifest identifies a Next.js application with development, build, a
 
 `npm ci`, lint, type-check, tests, and the production build passed on Node.js `24.19.0` and npm `11.17.0`. Repeat these checks on the target host and verify its runtime configuration before deployment.
 
+The supported browser floor is Chrome 111+, Edge 111+, Firefox 128+, and Safari 16.4+; it is declared in `package.json` and required by the Tailwind CSS 4 build.
+
 ## 3. Pre-Deployment Checklist
 
 - [x] Confirm the supported Node.js range and record the tested npm version.
 - [x] Review dependency compatibility and document known audit findings.
 - [x] Commit the approved lockfile.
 - [x] Run lint, type-check, tests, and production build.
+- [x] Declare and review the supported browser floor, including Firefox 128+.
 - [ ] Resolve known rendering and data-shape issues.
 - [ ] Verify responsive layout and accessibility.
 - [ ] Confirm demo data is clearly labeled.

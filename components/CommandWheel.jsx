@@ -19,12 +19,12 @@ const CommandWheel = ({ onClose }) => {
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}
       exit={{ scale: 0 }}
-      className="command-wheel fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+      className="command-wheel fixed inset-0 flex items-center justify-center bg-black/50 z-50"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="relative w-96 h-96">
         <motion.div
-          className="absolute inset-0 rounded-full bg-gray-800 bg-opacity-90"
+          className="absolute inset-0 rounded-full bg-gray-800/90"
           initial={{ rotate: 0 }}
           animate={{ rotate: 360 }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}

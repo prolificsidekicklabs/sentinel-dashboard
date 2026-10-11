@@ -23,6 +23,8 @@ git --version
 
 The checks in this guide were run with Node.js `24.19.0` and npm `11.17.0`.
 
+Supported browsers are Chrome 111+, Edge 111+, Firefox 128+, and Safari 16.4+, as declared in the `browserslist` field of `package.json` and used by Next.js for build output. Firefox below 128 is unsupported; Tailwind CSS 4 uses modern CSS features unavailable in older Firefox releases. See the [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide) and [Next.js supported browsers](https://nextjs.org/docs/architecture/supported-browsers).
+
 ## 3. Clone and Install
 
 ```bash
@@ -73,13 +75,13 @@ Commands were run against the committed package manifest and lockfile on Node.js
 | `npm test` | Passed; three server-rendered component tests cover agent cards, Focus Mode, and discourse events. |
 | `npm run build` | Passed; Next.js 16.4.0 generated the production build. The build warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. |
 | `npm audit --omit=dev` | Passed with zero reported production dependency vulnerabilities. |
-| `npm audit` | Reports 7 high, 0 moderate, 0 low, and 0 critical findings, all stemming from `braces@3.0.3` in development-tool dependency paths (`tailwindcss` and `eslint-config-next`). |
+| `npm audit` | Reports 5 high, 0 moderate, 0 low, and 0 critical findings, stemming from `braces@3.0.3` in the `eslint-config-next` development dependency path. The Tailwind 3 dependency path is removed. |
 
 The reported `braces` advisory is [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm). No patched npm release was available at the time of review; the upstream discussion reports that the advisory is disputed and no fix release is planned ([maintainer issue](https://github.com/micromatch/braces/issues/73)). Do not describe the full dependency tree as vulnerability-free. Re-run `npm audit` when upstream status changes.
 
 The production dependency audit is clean, but Next.js has announced another security release for October 14, 2026, covering two Critical and one High upstream issues. Affected versions and patches were not yet published at the time of this check; re-run the audit and upgrade to the appropriate patched release when available: [Next.js announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026).
 
-Tailwind CSS 4 was not adopted in this change because its browser requirement raises the Firefox floor to 128+, while Next.js 16 defaults to Firefox 111+. That would be a product compatibility change. The project preserves Tailwind 3 pending a decision on the supported browser floor. See the [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide) and [Next.js supported browsers](https://nextjs.org/docs/architecture/supported-browsers).
+Tailwind CSS 4.3 is configured through `@tailwindcss/postcss` and the CSS `@import`/`@theme` directives in `styles/globals.css`; the obsolete JavaScript Tailwind config was removed. The browser target intentionally requires Firefox 128+ (plus Chrome 111+, Edge 111+, and Safari 16.4+). See the [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide), [PostCSS installation guide](https://tailwindcss.com/docs/installation/using-postcss), and [dark-mode guide](https://tailwindcss.com/docs/dark-mode).
 
 ## 7. Source Layout
 
@@ -99,7 +101,6 @@ styles/
   globals.css
 next.config.js
 postcss.config.js
-tailwind.config.js
 eslint.config.mjs
 tsconfig.json
 package.json

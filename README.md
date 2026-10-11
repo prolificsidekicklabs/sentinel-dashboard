@@ -57,7 +57,7 @@ The committed manifest and lockfile establish this baseline:
 
 - Next.js `16.4.0`
 - React `18.x` (the current build emits a deprecation warning; Next.js 16 recommends upgrading to React 19 before Next.js 17)
-- Tailwind CSS `3.4.x`
+- Tailwind CSS `4.3.x`
 - D3 `7.x`
 - Framer Motion `11.x`
 - TypeScript `5.x`, configured to check the JavaScript/JSX source
@@ -67,7 +67,7 @@ The committed manifest and lockfile establish this baseline:
 
 Storybook scripts and dependencies were removed because the repository had no Storybook configuration or stories. The unused Husky/lint-staged setup was also removed.
 
-Tailwind CSS 4 is not enabled yet: its published browser floor includes Firefox 128+, while the Next.js 16 default includes Firefox 111+. The project preserves the current framework browser baseline until that compatibility choice is confirmed. See the [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide) and [Next.js supported browsers](https://nextjs.org/docs/architecture/supported-browsers).
+**Supported browser floor:** Chrome 111+, Edge 111+, Firefox 128+, and Safari 16.4+. These targets are declared in `package.json`'s `browserslist` field, which Next.js uses for its build output. Firefox versions below 128 are unsupported because Tailwind CSS 4 relies on modern CSS features. See the [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide) and [Next.js supported browsers](https://nextjs.org/docs/architecture/supported-browsers).
 
 ## 5. Prerequisites
 
@@ -129,6 +129,6 @@ Simulated prices, agent outputs, confidence values, and risk labels must not be 
 
 The README and seven `docs/` guides provide the repository baseline. The code now has a committed lockfile and passing lint, type-check, component-test, and build checks. Deployment, API, security-control, and integration claims remain proposed or unverified until implemented and independently reviewed.
 
-The production dependency audit (`npm audit --omit=dev`) reports no known vulnerabilities. The full development audit still reports **7 high-severity findings** through the transitive `braces@3.0.3` dependency used by Tailwind CSS 3 and the Next.js ESLint plugin. No patched npm release was available when checked; the upstream advisory is disputed ([upstream issue](https://github.com/micromatch/braces/issues/73)). Next.js has also announced another security update for October 14, 2026, but had not published affected-version details at the time of this review ([announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)). Re-run the audits and update dependencies when that release is available.
+The production dependency audit (`npm audit --omit=dev`) reports no known vulnerabilities. The full development audit reports **5 high-severity findings** through the transitive `braces@3.0.3` dependency used by the Next.js ESLint plugin; the Tailwind 3 dependency path was removed in this migration. No patched npm release was available when checked; the upstream advisory is disputed ([upstream issue](https://github.com/micromatch/braces/issues/73)). Next.js has also announced another security update for October 14, 2026, but had not published affected-version details at the time of this review ([announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)). Re-run the audits and update dependencies when that release is available.
 
 Last reviewed: 2026-10-11.
