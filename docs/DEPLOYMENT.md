@@ -2,11 +2,11 @@
 
 ## 1. Status and Scope
 
-This remains a proposed deployment guide. The repository includes a Next.js dashboard and a Python FastAPI service, but no production deployment, hosting provider, database, user identity system, or operational CI/CD release pipeline is established. The Next.js paper-data proxy returns 404 in production by design.
+This remains a proposed deployment guide. The repository includes a Next.js dashboard and a Python FastAPI service, but no production deployment, hosting provider, database, user identity system, or operational CI/CD release pipeline is established. The local provider proxy and the dashboard candidate panel are disabled in production by design.
 
 ## 2. Current Application Profile
 
-The package manifest identifies a Next.js application with development, build, and production-start scripts. The `backend/` folder contains an authenticated FastAPI development service with a paper-only read route and plugin routes.
+The package manifest identifies a Next.js application with development, build, and production-start scripts. The `backend/` folder contains an authenticated FastAPI development service with paper-only and research-candidate read routes, plus plugin routes. The candidate panel requires a user-triggered request and is available only in local development.
 
 `npm ci`, lint, type-check, tests, and the production build passed on Node.js `24.19.0` and npm `11.17.0`; backend format/lint/type/test checks use the pinned `backend/requirements.lock`. Repeat both suites on the target host and verify its runtime configuration before deployment.
 

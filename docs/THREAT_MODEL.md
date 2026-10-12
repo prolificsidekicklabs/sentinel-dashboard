@@ -97,7 +97,7 @@ The browser must be treated as an untrusted environment. Client-side state is no
 
 - Do not expose live execution in the UI prototype.
 - The implemented API has no order, cancel, or liquidation route; its paper dashboard handler forcibly selects Alpaca's official paper host even if environment variables request live reads.
-- The browser-facing data proxy accepts one same-origin read, targets loopback HTTP, holds the bearer key server-side, disables caching, and returns 404 in production. This is a local development boundary, not user identity or production access control.
+- The browser-facing proxy accepts only same-origin GETs for the fixed paper-dashboard and research-candidate resources, targets loopback HTTP, holds the bearer key server-side, disables caching, and returns 404 in production. The candidate panel is user-triggered and validates the response, but client validation is not authorization. This is a local development boundary, not user identity or production access control.
 - Strategy-category plugins are refused by the generic run endpoint; the dedicated research route validates typed output and invokes the independent review gate. Both signal and gate response fix `execution_enabled` to false; no broker client is used.
 - Require server-side authentication and authorization.
 - Use narrowly scoped execution credentials.

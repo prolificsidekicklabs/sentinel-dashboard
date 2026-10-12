@@ -17,7 +17,7 @@
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "test": "tsx --test components/dashboard-components.test.jsx lib/strategy-validation.test.js lib/demo-data.test.js lib/paper-dashboard.test.js lib/sentinel-api-proxy.test.js"
+    "test": "tsx --test components/dashboard-components.test.jsx components/ResearchCandidatePanel.test.jsx lib/strategy-validation.test.js lib/demo-data.test.js lib/paper-dashboard.test.js lib/research-candidate.test.js lib/sentinel-api-proxy.test.js"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.0.5",
