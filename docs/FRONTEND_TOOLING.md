@@ -1,6 +1,6 @@
 # Frontend tooling and local data bridge
 
-**Reviewed:** 2026-10-11. This guide reflects the reconciled PR #1 dashboard baseline and PR #2 local Python service.
+**Reviewed:** 2026-10-11. This guide reflects the reconciled dashboard/API baseline and the stacked research-candidate strategy implementation.
 
 ## Toolchain
 
@@ -26,7 +26,8 @@ Verified on 2026-10-11 after clean lockfile installation:
 |---|---|---|
 | Frontend | `npm run lint`, `npm run type-check`, `npm test`, `npm run build` | Passed; 23 tests passed; build emitted the React 18 deprecation warning noted above. |
 | Production dependencies | `npm audit --omit=dev --audit-level=high` | Passed; 0 vulnerabilities reported. |
-| Backend | `ruff format --check src plugins tests`, `ruff check src plugins tests`, `mypy src`, `pytest -q` | Passed; 39 tests passed. |
+| Backend | `ruff format --check src plugins tests`, `ruff check src plugins tests`, `mypy src plugins/rsi-macd-candidate/plugin.py`, `pytest -q` | Passed; 58 tests passed. |
 | Alpaca paper integration | Authenticated FastAPI GET and same-origin Next.js proxy GET | Both returned HTTP 200; response validated paper mode, execution disabled, and market/account/position data. No balances or holdings were displayed; temporary local credential/response files were removed. |
+| Candidate-strategy integration | One authenticated GET using the read-only market-data route | Returned HTTP 200 with 250 valid daily bars; the result was `bullish_candidate`/`review_required`, `execution_enabled: false`, and contained no account or position fields. The temporary service and local bearer token were removed. |
 
 The last full development dependency audit recorded 5 high-severity findings in the transitive `braces@3.0.3` path used by the Next.js ESLint plugin. The advisory was disputed upstream and no patched npm release was available in that review. The production-only audit is clean; do not describe the complete development dependency tree as vulnerability-free. Re-run the full audit before release.

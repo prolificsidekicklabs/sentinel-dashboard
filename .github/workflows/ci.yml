@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, docs/sentinel-documentation-baseline]
+    branches: [main, docs/sentinel-documentation-baseline, feat/python-plugin-runtime-foundation]
 
 permissions:
   contents: read

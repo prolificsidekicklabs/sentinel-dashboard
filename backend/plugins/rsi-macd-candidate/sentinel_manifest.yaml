@@ -1,0 +1,9 @@
+manifest_version: "1.0"
+plugin_id: rsi-macd-candidate
+name: RSI MACD Candidate Strategy
+version: 0.1.0
+plugin_type: strategy
+entrypoint: plugin:RsiMacdCandidatePlugin
+permissions: []
+deterministic: true
+description: Emits a typed bullish, bearish, or no-candidate research label from caller-supplied daily bars; it cannot size or submit orders.

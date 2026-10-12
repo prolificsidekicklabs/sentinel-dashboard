@@ -19,11 +19,12 @@ _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)
 
 
 class PluginType(StrEnum):
-    """Plugin categories reserved by the initial contract."""
+    """Supported plugin categories in the versioned local manifest contract."""
 
     AGENT = "agent"
     ENGINE = "engine"
     INDICATOR = "indicator"
+    STRATEGY = "strategy"
     RISK_MODEL = "risk_model"
     SCREENER = "screener"
     DATA_CONNECTOR = "data_connector"

@@ -32,16 +32,18 @@ Configuration names are in `.env.example`. Copy values into the **backend proces
 
 `AlpacaReadOnlyBrokerAdapter` reads account summary and open positions from the **paper** Trading API by default. It has no order, cancel, or liquidation method. The dashboard API forces paper mode regardless of live-read environment flags. The adapter uses Alpaca Trading API key headers from `SENTINEL_ALPACA_KEY_ID` and `SENTINEL_ALPACA_SECRET_KEY`. These credentials are not stored in the browser, database, or source tree.
 
+`GET /api/v1/research/strategies/rsi-macd-candidate?symbol=SPY` fetches up to 365 calendar days of daily bars through the read-only market adapter, runs a pure deterministic strategy plugin, validates its typed output, and applies `CandidateRiskGate`. This route returns only a research candidate and market-quality metadata; it does not fetch account or position data. Generic plugin execution refuses strategy-category plugins, so this candidate cannot bypass the review gate through the generic API. The response can be blocked, contain no candidate, or require human review; it always has `execution_enabled: false`.
+
 ## Contracts and deterministic boundaries
 
 - `adapters.ports` defines provider-neutral market-data and broker-read interfaces, Decimal-based finance records, and an order proposal that is separate from authorization.
 - `RiskEvaluator` is an independent policy port. A model response is never a risk evaluation.
 - The future execution contract accepts only a `RiskApprovedOrder` carrying an explicit versioned risk evaluation and idempotency key. There is currently **no concrete broker execution adapter**.
-- The moving-average example is illustrative only; it is not a trading signal or recommendation.
+- The moving-average example is illustrative only. The RSI/MACD/EMA candidate is a research-only directional label, not a recommendation or evidence of a strategy edge. Its separate review gate checks input quality/freshness and only allows human review; it does not assess account exposure or position sizing. See [the candidate-strategy contract and Alpaca SDK review](docs/CANDIDATE_STRATEGY.md).
 
 ## Plugin contract and execution boundary
 
-A local plugin directory contains `sentinel_manifest.yaml`, `SKILL.md`, `plugin.py`, and `tests/`. Manifests use safe YAML parsing, reject duplicate keys, and are checked against a versioned Pydantic schema. The current generic async contract is `async def run(context: PluginContext) -> PluginResult`; plugin-type identifiers are included for future specialization.
+A local plugin directory contains `sentinel_manifest.yaml`, `SKILL.md`, `plugin.py`, and `tests/`. Manifests use safe YAML parsing, reject duplicate keys, and are checked against a versioned Pydantic schema. The current generic async contract is `async def run(context: PluginContext) -> PluginResult`; plugin types include `strategy`, whose API path must apply the separate candidate review gate.
 
 The run context contains a caller-supplied seed, a per-run `random.Random` seeded from it, and JSON input. It intentionally exposes no provider or broker clients. The sample plugin is deterministic and does not use randomness. Each run hashes canonicalized input, manifest identity, seed, and output so repeated executions can be compared.
 
@@ -56,7 +58,7 @@ The current service does not yet provide user identity/session authentication, r
 ```bash
 ruff format --check src plugins tests
 ruff check src plugins tests
-mypy src
+mypy src plugins/rsi-macd-candidate/plugin.py
 pytest
 ```
 

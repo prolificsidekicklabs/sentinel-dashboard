@@ -48,9 +48,17 @@ pages/strategy-validation.jsx
           |
           +-- SMA crossover backtest and buy-and-hold comparison
           +-- Downloadable experiment record
+
+GET /api/v1/research/strategies/rsi-macd-candidate
+    |
+    +-- Authenticated FastAPI route
+    +-- Read-only Alpaca historical bars
+    +-- Deterministic, isolated RSI/MACD/EMA plugin
+    +-- Typed candidate signal
+    +-- Independent CandidateRiskGate (review-only; never execution authorization)
 ```
 
-The main dashboard defaults to fixed synthetic fixtures. In local development, it can request a same-origin proxy that forwards one allowlisted read to the FastAPI service; the proxy keeps the bearer key server-side, enforces same-origin and loopback HTTP, disables caching, and refuses production use. FastAPI forces Alpaca's paper trading host and returns normalized decimal account/position values and historical bars. The chart draws only supplied bars. The agent opinions, discourse, risk glow and illustrative verdict remain fixed synthetic examples and are not computed from paper data. After implementation, a user-authorized read-only paper connection was verified through both FastAPI and the local Next.js proxy; temporary local credential and response files were removed afterward. This does not verify live-account access or market-data freshness. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. That prototype does not fetch data, upload the file, persist runs on a server, or submit orders; its assumptions and limitations are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md).
+The main dashboard defaults to fixed synthetic fixtures. In local development, it can request a same-origin proxy that forwards one allowlisted read to the FastAPI service; the proxy keeps the bearer key server-side, enforces same-origin and loopback HTTP, disables caching, and refuses production use. FastAPI forces Alpaca's paper trading host for account reads and returns normalized decimal account/position values and historical bars. The chart draws only supplied bars. The agent opinions, discourse, risk glow and illustrative verdict remain fixed synthetic examples and are not computed from paper data. A user-authorized read-only paper connection was verified through both FastAPI and the local Next.js proxy; temporary local credential and response files were removed afterward. This does not verify live-account access or market-data freshness. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. The authenticated candidate-strategy route uses market bars only, runs a local plugin in the bounded subprocess, validates its typed signal, and applies a separate fail-closed review gate. That gate checks market-data quality/freshness and contract consistency; eligible candidates still require human review, account exposure and sizing are unassessed, and execution is structurally disabled. Neither strategy path submits orders; the browser prototype's assumptions are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md), while the new backend plugin and Alpaca SDK review are documented in [Candidate Strategy](../backend/docs/CANDIDATE_STRATEGY.md).
 
 The command wheel no longer uses browser alerts. It provides explicit demo-only status messages, scrolls to the illustrative discourse, or links to the local-file validation prototype. It does not connect to an analysis, vault, account-settings, language-model, performance, or trading service.
 
@@ -76,13 +84,13 @@ The command wheel no longer uses browser alerts. It provides explicit demo-only 
 
 ### 3.4 Data layer
 
-**Current:** The dashboard has a local, optional Alpaca read-only paper data path plus a fixed synthetic fallback. The validation prototype processes a user-provided CSV in browser memory and downloads an experiment JSON record. No account was connected, and there is no persistent database, production provider secret store, or live feed service.
+**Current:** The dashboard has a local, optional Alpaca read-only paper data path plus a fixed synthetic fallback. The validation prototype processes a user-provided CSV in browser memory and downloads an experiment JSON record. The candidate strategy route reads normalized daily market bars only and returns a typed research signal plus review-gate outcome; it does not fetch paper account or position data. A one-time paper-read path was verified, but there is no persistent database, production provider secret store, or live-feed service.
 
 **Future:** Separate raw market observations, normalized market state, analytical assessments, decisions, risk evaluations, and execution records. Maintain source identifiers and event timestamps.
 
 ### 3.5 Integration layer
 
-**Current:** The Alpaca adapters are exercised with mocked provider responses, and a user-authorized read-only paper-account check returned normalized market bars and paper account/position data through the local route. No live account, execution integration, or freshness guarantee has been verified. AEGIS Core and broker execution have not been implemented.
+**Current:** The Alpaca adapters are exercised with mocked provider responses, and a user-authorized read-only paper-account check returned normalized market bars and paper account/position data through the local route. The research candidate route reuses only the read-only market-data adapter. No live account, execution integration, or freshness guarantee has been verified. AEGIS Core and broker execution have not been implemented.
 
 **Future:** Use explicit service interfaces and least-privilege credentials. Integrations must not be able to circumvent policy enforcement, risk checks, or authorization requirements.
 

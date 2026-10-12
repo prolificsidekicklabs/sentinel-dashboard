@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import httpx
@@ -120,6 +120,74 @@ def test_plugin_run_rejects_unknown_plugins_and_extra_request_fields() -> None:
     assert invalid.status_code == 422
 
 
+def test_strategy_route_runs_candidate_review_and_generic_run_cannot_bypass_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(api, "_make_market_adapter", lambda: _FakeCandidateMarketAdapter())
+
+    missing_auth = asyncio.run(
+        _request("GET", "/api/v1/research/strategies/rsi-macd-candidate?symbol=SPY")
+    )
+    response = asyncio.run(
+        _request(
+            "GET",
+            "/api/v1/research/strategies/rsi-macd-candidate?symbol=SPY",
+            headers=AUTH_HEADERS,
+        )
+    )
+    bypass = asyncio.run(
+        _request(
+            "POST",
+            "/api/v1/plugins/rsi-macd-candidate/run",
+            json={"seed": 0, "input": {}},
+            headers=AUTH_HEADERS,
+        )
+    )
+
+    assert missing_auth.status_code == 401
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["mode"] == "research-candidate"
+    assert body["execution_enabled"] is False
+    assert body["signal"]["execution_enabled"] is False
+    assert body["signal"]["bar_count"] == 220
+    assert body["review"]["disposition"] == "no_candidate"
+    assert body["review"]["execution_enabled"] is False
+    assert "account" not in body and "positions" not in body
+    assert bypass.status_code == 409
+    assert "independent research review endpoint" in bypass.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    ("instrument_id", "timeframe"),
+    [("QQQ", "1Day"), ("SPY", "1Hour")],
+)
+def test_strategy_route_rejects_provider_symbol_or_timeframe_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    instrument_id: str,
+    timeframe: str,
+) -> None:
+    monkeypatch.setattr(
+        api,
+        "_make_market_adapter",
+        lambda: _FakeCandidateMarketAdapter(
+            instrument_id=instrument_id,
+            timeframe=timeframe,
+        ),
+    )
+
+    response = asyncio.run(
+        _request(
+            "GET",
+            "/api/v1/research/strategies/rsi-macd-candidate?symbol=SPY",
+            headers=AUTH_HEADERS,
+        )
+    )
+
+    assert response.status_code == 502
+    assert "unexpected instrument or timeframe" in response.json()["detail"]
+
+
 class _FakeMarketAdapter:
     async def get_bars(self, query: MarketDataQuery) -> MarketSnapshot:
         assert query.instrument_id == "SPY"
@@ -143,6 +211,41 @@ class _FakeMarketAdapter:
             received_at=FIXED_NOW,
             quality=DataQuality.VALID,
             bars=(bar,),
+        )
+
+
+class _FakeCandidateMarketAdapter:
+    def __init__(self, *, instrument_id: str = "SPY", timeframe: str = "1Day") -> None:
+        self.instrument_id = instrument_id
+        self.timeframe = timeframe
+
+    async def get_bars(self, query: MarketDataQuery) -> MarketSnapshot:
+        assert query.instrument_id == "SPY"
+        assert query.timeframe == "1Day"
+        received_at = datetime.now(UTC)
+        latest = received_at - timedelta(days=1)
+        bars = tuple(
+            OHLCVBar(
+                instrument_id=self.instrument_id,
+                observed_at=latest - timedelta(days=219 - index),
+                open=Decimal("100.00") + Decimal(index) / Decimal("10"),
+                high=Decimal("101.00") + Decimal(index) / Decimal("10"),
+                low=Decimal("99.00") + Decimal(index) / Decimal("10"),
+                close=Decimal("100.00") + Decimal(index) / Decimal("10"),
+                volume=Decimal("1000"),
+                currency="USD",
+                source_id="alpaca:iex",
+            )
+            for index in range(220)
+        )
+        return MarketSnapshot(
+            instrument_id=self.instrument_id,
+            timeframe=self.timeframe,
+            source_id="alpaca:iex",
+            observed_at=latest,
+            received_at=received_at,
+            quality=DataQuality.VALID,
+            bars=bars,
         )
 
 

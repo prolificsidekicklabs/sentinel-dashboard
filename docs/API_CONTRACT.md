@@ -2,11 +2,11 @@
 
 ## 1. Status
 
-**Partially implemented local contract; the remaining analysis and decision paths below are proposals.**
+**Partially implemented local contract; the remaining general analysis and decision paths below are proposals.**
 
-The Python service implements `GET /healthz`, API-key-protected plugin discovery and execution, and `GET /api/v1/paper/dashboard`. The paper response contains normalized historical OHLCV bars, a paper-account summary and positions, uses decimal values serialized as strings, omits the provider account identifier, and explicitly sets `execution_enabled` to `false`. The broker adapter is forced to Alpaca's paper host.
+The Python service implements `GET /healthz`, API-key-protected plugin discovery, non-strategy plugin execution, `GET /api/v1/paper/dashboard`, and `GET /api/v1/research/strategies/rsi-macd-candidate`. The paper response contains normalized historical OHLCV bars, a paper-account summary and positions, uses decimal values serialized as strings, omits the provider account identifier, and explicitly sets `execution_enabled` to `false`. The broker adapter is forced to Alpaca's paper host. The candidate route reads market bars only, returns a typed RSI/MACD/EMA research label, and applies a separate review-only gate; it does not fetch account/position data or enable execution.
 
-Protected routes require a server-to-server bearer token from `SENTINEL_API_KEY` with at least 32 characters. The Next.js proxy holds that token server-side, accepts same-origin GET requests only, targets loopback HTTP only, disables caching, and is disabled in production. The dashboard still shows fixed synthetic demo data unless server configuration and a provider connection succeed. No external credentials were configured for this implementation; route behavior is covered with mocked adapters.
+Protected routes require a server-to-server bearer token from `SENTINEL_API_KEY` with at least 32 characters. The Next.js proxy holds that token server-side, accepts same-origin GET requests only, targets loopback HTTP only, disables caching, and is disabled in production. The dashboard still shows fixed synthetic demo data unless server configuration and a provider connection succeed. A separate user-authorized read-only paper-data check previously succeeded through FastAPI and the Next.js proxy; automated provider tests remain mocked.
 
 ## 2. Design Principles
 
@@ -32,10 +32,13 @@ The following routes are implemented; all endpoint proposals in the later sectio
 |---|---|---|
 | `GET /healthz` | Public liveness only | Returns service status and version; no provider or credential state. |
 | `GET /api/v1/plugins` | Bearer API key | Lists validated local plugin metadata without filesystem paths. |
-| `POST /api/v1/plugins/{plugin_id}/run` | Bearer API key | Runs a repository-trusted local plugin with bounded input/output and an explicit seed. |
+| `POST /api/v1/plugins/{plugin_id}/run` | Bearer API key | Runs a repository-trusted non-strategy plugin with bounded input/output and an explicit seed; strategy plugins are refused here to prevent gate bypass. |
 | `GET /api/v1/paper/dashboard?symbol=SPY&days=30` | Bearer API key | Fetches bounded historical bars and Alpaca paper-account/position data; no execution capability. |
+| `GET /api/v1/research/strategies/rsi-macd-candidate?symbol=SPY` | Bearer API key | Fetches up to 365 calendar days of daily market bars, runs the deterministic strategy subprocess, validates its typed signal, and returns the independent review-gate result; no account or position data. |
 
-The local Next.js API proxy exposes only the final read route. It is a development bridge, not user authentication or production authorization.
+The local Next.js API proxy exposes only the paper dashboard route. The candidate route is backend-only for now; it is a development capability, not user authentication or production authorization.
+
+The candidate signal is one of `bullish_candidate`, `bearish_candidate`, or `no_candidate`; the review disposition is `blocked`, `no_candidate`, or `review_required`. Both the signal and response carry `execution_enabled: false`. `review_required` permits human inspection only. The gate checks source quality, instrument/timeframe consistency, minimum history, and observation/receipt freshness; it explicitly does not assess account exposure, position sizing, stop-loss/drawdown limits, or broker execution. Generic plugin execution returns `409` for strategy-category plugins.
 
 ## 4. Market State
 

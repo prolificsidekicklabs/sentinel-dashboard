@@ -66,7 +66,19 @@ The dashboard starts in fixed synthetic demo mode and keeps doing so if the back
 
 5. In another terminal at the repository root, run `npm run dev`, then use **Refresh paper data** in the dashboard.
 
-The browser can reach only a same-origin Next.js proxy; the proxy targets loopback HTTP, holds the shared bearer token server-side, and sends only a fixed dashboard read. FastAPI rejects missing or incorrect keys and always forces the broker API to Alpaca's paper host. The chart and account panel show provider data only after a successful validated response. The opinions, discourse and risk visuals remain synthetic. The proxy is disabled in production; this is not a user-login or production authorization system. After implementation, a user-authorized paper account test confirmed the authenticated FastAPI route and Next.js proxy returned a valid read-only snapshot. Only GET reads were made; no balances or holdings were displayed, and the temporary local environment and response files were removed after verification. Automated provider tests remain mocked.
+The browser can reach only a same-origin Next.js proxy; the proxy targets loopback HTTP, holds the shared bearer token server-side, and sends only a fixed dashboard read. FastAPI rejects missing or incorrect keys and always forces the broker API to Alpaca's paper host. The chart and account panel show provider data only after a successful validated response. The opinions, discourse and risk visuals remain synthetic. The proxy is disabled in production; this is not a user-login or production authorization system. A prior user-authorized paper account test confirmed the authenticated FastAPI route and Next.js proxy returned a valid read-only snapshot. Only GET reads were made; no balances or holdings were displayed, and temporary local credential/response files were removed. Automated provider tests remain mocked.
+
+### Research-only candidate strategy
+
+With the backend running and `SENTINEL_API_KEY` loaded in the shell, request the RSI/MACD candidate route directly:
+
+```bash
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer $SENTINEL_API_KEY" \
+  "http://127.0.0.1:8000/api/v1/research/strategies/rsi-macd-candidate?symbol=SPY"
+```
+
+The endpoint reads up to 365 calendar days of daily market bars only. It returns indicator values, one typed candidate label, and an independent review-gate result; it does not read the paper account or positions. The result may be blocked, contain no candidate, or require human review, and always has `execution_enabled: false`. The generic plugin-run route refuses strategy plugins with HTTP 409 so callers cannot bypass the gate. The review gate does not assess account exposure, position sizing, or stop-loss/drawdown limits; it is not trade authorization. See [Candidate Strategy](../backend/docs/CANDIDATE_STRATEGY.md) for formula details and the Alpaca SDK review.
 
 Build and run the production application:
 
@@ -90,7 +102,7 @@ Next.js 16 removed `next lint`; linting now runs through ESLint directly. Unconf
 
 ## 6. Continuous Integration
 
-`.github/workflows/ci.yml` runs `npm ci`, lint, type-check, tests, a production dependency audit, and the production build. `.github/workflows/backend-ci.yml` runs the Python format, lint, type, and test checks. Local results do not guarantee that a hosted workflow is enabled or passes; check the pull request's status checks.
+`.github/workflows/ci.yml` runs `npm ci`, lint, type-check, tests, a production dependency audit, and the production build. `.github/workflows/backend-ci.yml` runs Python formatting, lint, type checks for core and the candidate plugin, and tests. Both workflows include the PR #2 feature branch as a pull-request target so stacked PRs are checked. Local results do not guarantee that a hosted workflow is enabled or passes; check the pull request's status checks.
 
 ## 7. Verification Run (2026-10-11)
 
@@ -104,7 +116,7 @@ Commands were run against the committed package manifest and lockfile on Node.js
 | `npm test` | Passed; 23 tests across dashboard components, deterministic fixtures, response validation, proxy behavior, and strategy validation. |
 | `npm run build` | Passed; Next.js 16.4.0 generated the production build. The build warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. |
 | `npm audit --omit=dev --audit-level=high` | Passed with zero reported production dependency vulnerabilities. |
-| Backend `ruff format --check`, `ruff check`, `mypy src`, `pytest -q` | Passed; 39 backend tests. |
+| Backend `ruff format --check`, `ruff check`, `mypy src plugins/rsi-macd-candidate/plugin.py`, `pytest -q` | Passed; 58 backend tests, including candidate/plugin and provider-integrity coverage. |
 | One-time Alpaca paper integration check | Authenticated FastAPI GET and same-origin Next.js proxy GET | Both returned HTTP 200 with paper mode, execution disabled, and market/account/position data present; no balances or holdings were displayed, and temporary local credential/response files were removed. |
 | Last full `npm audit` | Reported 5 high, 0 moderate, 0 low, and 0 critical findings, stemming from `braces@3.0.3` in the `eslint-config-next` development dependency path. Re-run the full development audit before release; the production-only audit is clean. |
 
@@ -205,7 +217,7 @@ Ten pure-engine tests cover strict CSV quoting/column/date rules, OHLC and direc
 
 ### Recommended next layers
 
-- **Unit tests:** pure transformations, schema validation, indicator calculations, and risk-policy functions.
+- **Unit tests:** pure transformations, schema validation, indicator calculations, candidate review-gate checks, and future account-aware risk-policy functions.
 - **Component tests:** empty states, invalid input handling, accessibility, and user interactions.
 - **Integration tests:** the flow from a validated market snapshot through assessment display and decision rendering.
 - **End-to-end tests:** loading, errors, stale data, keyboard navigation, and responsive layout.
@@ -214,7 +226,7 @@ Ten pure-engine tests cover strict CSV quoting/column/date rules, OHLC and direc
 ## 12. Known Limitations and Follow-Ups
 
 - `FocusMode` still presents `data.agents[0]`; it does not let a user select another agent.
-- Alpaca credentials and an external account were not configured; provider behavior is covered by mocked tests only.
+- Automated provider behavior is covered by mocked tests; a separate user-authorized read-only paper-account/proxy check succeeded. The candidate route has no account/position reads and no order integration; live access and provider freshness guarantees remain unverified.
 - The shared bearer token is a local development guard, not user identity, per-user authorization, or tenant isolation. The production proxy is disabled.
 - The paper route does not implement a server-side freshness policy, durable audit trail, or account consent workflow.
 - Agent opinions, discourse, risk labels and verdict remain fixed synthetic content and are not based on provider data.

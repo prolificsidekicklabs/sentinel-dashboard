@@ -47,6 +47,7 @@ The browser must be treated as an untrusted environment. Client-side state is no
 - Enforce freshness thresholds server-side.
 - Mark stale or invalid data visibly.
 - Prevent invalid snapshots from reaching decision evaluation.
+- The research candidate route applies a separate fail-closed gate to quality, source/instrument/timeframe consistency, minimum history, and observation/receipt freshness. Eligible output means human review only; this gate is not an account-aware risk model.
 
 ### 4.2 Manipulated market-data input
 
@@ -97,6 +98,7 @@ The browser must be treated as an untrusted environment. Client-side state is no
 - Do not expose live execution in the UI prototype.
 - The implemented API has no order, cancel, or liquidation route; its paper dashboard handler forcibly selects Alpaca's official paper host even if environment variables request live reads.
 - The browser-facing data proxy accepts one same-origin read, targets loopback HTTP, holds the bearer key server-side, disables caching, and returns 404 in production. This is a local development boundary, not user identity or production access control.
+- Strategy-category plugins are refused by the generic run endpoint; the dedicated research route validates typed output and invokes the independent review gate. Both signal and gate response fix `execution_enabled` to false; no broker client is used.
 - Require server-side authentication and authorization.
 - Use narrowly scoped execution credentials.
 - Apply account, instrument, quantity, and exposure limits.
@@ -158,6 +160,19 @@ The browser must be treated as an untrusted environment. Client-side state is no
 - Cache safe read-only results where appropriate.
 - Monitor error rates and resource usage.
 - Define graceful degradation.
+
+### 4.10 Candidate signal mistaken for advice or approval
+
+**Threat:** A deterministic indicator label is interpreted as a recommendation, a calibrated forecast, a position-size instruction, or a risk approval; alternatively, a caller tries to bypass the review gate through generic plugin execution.
+
+**Controls:**
+
+- Use typed `bullish_candidate`, `bearish_candidate`, and `no_candidate` labels rather than order-side fields; do not emit confidence or quantity.
+- Run strategy-category plugins only through the authenticated route that schema-validates the signal and invokes `CandidateRiskGate`; generic plugin execution returns `409` for strategy plugins.
+- The gate can block, report no candidate, or require human review. It always returns `execution_enabled: false` and identifies account exposure, sizing, and stop-loss/drawdown controls as unassessed.
+- Keep the plugin deterministic and local, with no network, provider credential, account, or broker context. The local subprocess is for trusted repository-reviewed code, not hostile marketplace plugins.
+
+**Remaining risk:** The technical rule is not validated, backtested, or demonstrated to have predictive value. The review gate checks data/contract conditions only and must never be reused as an order-risk evaluator.
 
 ## 5. Security Principles
 

@@ -27,7 +27,7 @@ dev = [
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "plugins/moving-average/tests"]
+testpaths = ["tests", "plugins/moving-average/tests", "plugins/rsi-macd-candidate/tests"]
 pythonpath = ["src"]
 
 [tool.ruff]
