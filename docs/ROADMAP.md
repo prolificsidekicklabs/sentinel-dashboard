@@ -78,7 +78,7 @@ Work items:
 - Display source and last-update information.
 - Test reconnects, missing observations, and delayed feeds.
 
-**Partial delivery:** An Alpaca market-bars adapter, an authenticated paper account/positions route, and a development-only dashboard proxy are implemented and tested with mocked HTTP responses. The route forces the paper broker host, and the interface separates synthetic agent content from provider bars/account fields. No keys were configured and no external connection was verified. Freshness thresholds, live entitlement/licensing review, credential management, retries/reconnect behavior, and account-specific validation remain open.
+**Partial delivery:** An Alpaca market-bars adapter, an authenticated paper account/positions route, and a development-only dashboard proxy are implemented. Automated tests use mocked HTTP responses; after implementation, a user-authorized local read-only paper connection was verified through both FastAPI and the Next.js proxy, returning market bars and paper account/position data with execution disabled. No balances or holdings were displayed, and the temporary local credential/response files were removed. This confirms one paper-read path only. Freshness thresholds, live entitlement/licensing review, persistent credential management, retries/reconnect behavior, and broader account-specific validation remain open.
 
 **Exit criteria:**
 

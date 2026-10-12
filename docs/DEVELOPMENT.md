@@ -66,7 +66,7 @@ The dashboard starts in fixed synthetic demo mode and keeps doing so if the back
 
 5. In another terminal at the repository root, run `npm run dev`, then use **Refresh paper data** in the dashboard.
 
-The browser can reach only a same-origin Next.js proxy; the proxy targets loopback HTTP, holds the shared bearer token server-side, and sends only a fixed dashboard read. FastAPI rejects missing or incorrect keys and always forces the broker API to Alpaca's paper host. The chart and account panel show provider data only after a successful validated response. The opinions, discourse and risk visuals remain synthetic. The proxy is disabled in production; this is not a user-login or production authorization system. No provider connection was made while implementing the code.
+The browser can reach only a same-origin Next.js proxy; the proxy targets loopback HTTP, holds the shared bearer token server-side, and sends only a fixed dashboard read. FastAPI rejects missing or incorrect keys and always forces the broker API to Alpaca's paper host. The chart and account panel show provider data only after a successful validated response. The opinions, discourse and risk visuals remain synthetic. The proxy is disabled in production; this is not a user-login or production authorization system. After implementation, a user-authorized paper account test confirmed the authenticated FastAPI route and Next.js proxy returned a valid read-only snapshot. Only GET reads were made; no balances or holdings were displayed, and the temporary local environment and response files were removed after verification. Automated provider tests remain mocked.
 
 Build and run the production application:
 
@@ -105,6 +105,7 @@ Commands were run against the committed package manifest and lockfile on Node.js
 | `npm run build` | Passed; Next.js 16.4.0 generated the production build. The build warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. |
 | `npm audit --omit=dev --audit-level=high` | Passed with zero reported production dependency vulnerabilities. |
 | Backend `ruff format --check`, `ruff check`, `mypy src`, `pytest -q` | Passed; 39 backend tests. |
+| One-time Alpaca paper integration check | Authenticated FastAPI GET and same-origin Next.js proxy GET | Both returned HTTP 200 with paper mode, execution disabled, and market/account/position data present; no balances or holdings were displayed, and temporary local credential/response files were removed. |
 | Last full `npm audit` | Reported 5 high, 0 moderate, 0 low, and 0 critical findings, stemming from `braces@3.0.3` in the `eslint-config-next` development dependency path. Re-run the full development audit before release; the production-only audit is clean. |
 
 The reported `braces` advisory is [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm). No patched npm release was available at the time of review; the upstream discussion reports that the advisory is disputed and no fix release is planned ([maintainer issue](https://github.com/micromatch/braces/issues/73)). Do not describe the full dependency tree as vulnerability-free. Re-run `npm audit` when upstream status changes.

@@ -51,7 +51,7 @@ The Python service also provides API-key-protected local plugin discovery and ex
 
 The current implementation does not establish:
 
-- A connected Alpaca account or verified live-market feed; credentials were not configured during this work.
+- A live Alpaca account, live trading, a real-time freshness guarantee, or production data reliability. A temporary read-only paper-account check returned valid market bars and account/position data through the local API and proxy.
 - A production broker connection or any order-execution engine.
 - Persistent storage for analyses, decisions, or trades.
 - A production agent-orchestration backend.
@@ -116,7 +116,7 @@ npm test
 npm run build
 ```
 
-**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all 23 frontend tests, the production build, and the production dependency audit passed. Backend format, lint, strict typing, and all 39 backend tests also passed from the pinned Python lockfile. GitHub Actions runs on pull requests to `main` and the documentation-baseline branch and pushes to `main`; see `.github/workflows/ci.yml`, `.github/workflows/backend-ci.yml`, and the PR status checks. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the full security-audit status.
+**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all 23 frontend tests, the production build, and the production dependency audit passed. Backend format, lint, strict typing, and all 39 backend tests also passed from the pinned Python lockfile. A separate user-authorized read-only paper-account check succeeded through both FastAPI and the same-origin Next.js proxy; it confirmed paper mode and disabled execution without displaying balances or holdings. Temporary local credentials/response files were removed. GitHub Actions runs on pull requests to `main` and the documentation-baseline branch and pushes to `main`; see `.github/workflows/ci.yml`, `.github/workflows/backend-ci.yml`, and the PR status checks. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the full security-audit status.
 
 ## 7. Architecture and Development Documentation
 
@@ -141,7 +141,7 @@ The strategy-validation prototype's historical metrics are research-only and do 
 
 ## 9. Documentation and Security Status
 
-The code includes a research-only local-file validation prototype, a Python plugin/runtime foundation, an authenticated local API, and paper-only read adapters with an explicit no-execution response contract. No Alpaca credentials or external account were connected during implementation; adapter behavior is verified with mocked provider responses. The paper-data proxy is disabled in production, and no user-login/session system, durable secret store, tenant isolation, audit service, or secure untrusted-plugin sandbox is implemented. Review the [development guide](docs/DEVELOPMENT.md), [threat model](docs/THREAT_MODEL.md), [deployment guide](docs/DEPLOYMENT.md), and [backend limits](backend/README.md) before use.
+The code includes a research-only local-file validation prototype, a Python plugin/runtime foundation, an authenticated local API, and paper-only read adapters with an explicit no-execution response contract. Automated provider tests use mocked responses; in addition, a user-authorized, read-only paper-account check successfully retrieved paper-mode market bars, account, and positions through both the FastAPI route and local Next.js proxy. The response affirmed paper mode and disabled execution. No balances or holdings were displayed, and temporary local credential/response files were deleted after verification; no live account or order operation was used. The paper-data proxy is disabled in production, and no user-login/session system, durable secret store, tenant isolation, audit service, or secure untrusted-plugin sandbox is implemented. Review the [development guide](docs/DEVELOPMENT.md), [threat model](docs/THREAT_MODEL.md), [deployment guide](docs/DEPLOYMENT.md), and [backend limits](backend/README.md) before use.
 
 The production dependency audit (`npm audit --omit=dev`) reports no known vulnerabilities. The full development audit reports **5 high-severity findings** through the transitive `braces@3.0.3` dependency used by the Next.js ESLint plugin; no patched npm release was available when checked and the upstream advisory is disputed ([upstream issue](https://github.com/micromatch/braces/issues/73)). Next.js has also announced another security update for October 14, 2026, but had not published affected-version details at the time of the previous review ([announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)). Re-run audits and update dependencies before release.
 

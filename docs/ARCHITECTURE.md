@@ -50,7 +50,7 @@ pages/strategy-validation.jsx
           +-- Downloadable experiment record
 ```
 
-The main dashboard defaults to fixed synthetic fixtures. In local development, it can request a same-origin proxy that forwards one allowlisted read to the FastAPI service; the proxy keeps the bearer key server-side, enforces same-origin and loopback HTTP, disables caching, and refuses production use. FastAPI forces Alpaca's paper trading host and returns normalized decimal account/position values and historical bars. The chart draws only supplied bars. The agent opinions, discourse, risk glow and illustrative verdict remain fixed synthetic examples and are not computed from paper data. No Alpaca credentials were connected while implementing this flow. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. That prototype does not fetch data, upload the file, persist runs on a server, or submit orders; its assumptions and limitations are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md).
+The main dashboard defaults to fixed synthetic fixtures. In local development, it can request a same-origin proxy that forwards one allowlisted read to the FastAPI service; the proxy keeps the bearer key server-side, enforces same-origin and loopback HTTP, disables caching, and refuses production use. FastAPI forces Alpaca's paper trading host and returns normalized decimal account/position values and historical bars. The chart draws only supplied bars. The agent opinions, discourse, risk glow and illustrative verdict remain fixed synthetic examples and are not computed from paper data. After implementation, a user-authorized read-only paper connection was verified through both FastAPI and the local Next.js proxy; temporary local credential and response files were removed afterward. This does not verify live-account access or market-data freshness. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. That prototype does not fetch data, upload the file, persist runs on a server, or submit orders; its assumptions and limitations are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md).
 
 The command wheel no longer uses browser alerts. It provides explicit demo-only status messages, scrolls to the illustrative discourse, or links to the local-file validation prototype. It does not connect to an analysis, vault, account-settings, language-model, performance, or trading service.
 
@@ -82,7 +82,7 @@ The command wheel no longer uses browser alerts. It provides explicit demo-only 
 
 ### 3.5 Integration layer
 
-**Current:** The Alpaca adapters are exercised with mocked provider responses; no external account has been connected. AEGIS Core and any broker execution integration have not been verified or implemented.
+**Current:** The Alpaca adapters are exercised with mocked provider responses, and a user-authorized read-only paper-account check returned normalized market bars and paper account/position data through the local route. No live account, execution integration, or freshness guarantee has been verified. AEGIS Core and broker execution have not been implemented.
 
 **Future:** Use explicit service interfaces and least-privilege credentials. Integrations must not be able to circumvent policy enforcement, risk checks, or authorization requirements.
 
@@ -235,8 +235,8 @@ The dashboard should consume governed records rather than become the authority f
 
 ## 7. Current Technical Risks to Verify
 
-1. No Alpaca credentials were configured; external provider connectivity, entitlement, and data freshness remain unverified. The fallback fixture is fixed and labeled synthetic.
-2. The chart renders only supplied OHLCV bars, but a successful mock-tested adapter does not establish a connected or independently verified market feed.
+1. A paper-account read-only connection was verified for a local dashboard request; this does not validate live-account access, all feed entitlements, freshness policy, or production reliability. The fallback fixture is fixed and labeled synthetic.
+2. The chart renders only supplied OHLCV bars. The successful paper read confirms one provider path, not freshness or a reliability guarantee for future market data.
 3. Agent confidence and rationales are predefined examples.
 4. The simulated verdict is not evidence of a real risk engine.
 5. The command wheel provides demo-only feedback/navigation; no analytical service action is wired to it.

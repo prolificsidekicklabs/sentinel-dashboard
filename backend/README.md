@@ -1,6 +1,6 @@
 # Sentinel Python Service Foundation
 
-This folder contains the Python service alongside the Next.js dashboard. It is an early **contract and local-runtime foundation**, not a production trading backend. The local Next.js development server is wired to the authenticated, read-only paper dashboard route; no provider account or credentials were connected while this code was implemented.
+This folder contains the Python service alongside the Next.js dashboard. It is an early **contract and local-runtime foundation**, not a production trading backend. The local Next.js development server is wired to the authenticated, read-only paper dashboard route. After implementation, a user-authorized Alpaca paper account read succeeded through the local API and proxy; temporary local credential and response files were removed afterward.
 
 ## Run locally
 
@@ -49,7 +49,7 @@ Plugin code runs in a fresh Python subprocess with a scrubbed environment, tempo
 
 ## Known production gaps
 
-The current service does not yet provide user identity/session authentication, role-based authorization, tenant isolation, encrypted persistent secret storage, audited connection management, rate limiting, durable jobs, a database, live data streams, a secure untrusted-plugin sandbox, CI publishing, marketplace/payout flows, or broker order execution. API behavior and provider adapters are tested with mocks; no external Alpaca account was connected. The Next.js proxy is intentionally restricted to local development and disabled in production.
+The current service does not yet provide user identity/session authentication, role-based authorization, tenant isolation, encrypted persistent secret storage, audited connection management, rate limiting, durable jobs, a database, live data streams, a secure untrusted-plugin sandbox, CI publishing, marketplace/payout flows, or broker order execution. Automated API/provider tests use mocks; a separate user-authorized read-only paper-data check succeeded through FastAPI and the Next.js proxy. No live-account credentials or order operations were used, and no balances or holdings were displayed. The Next.js proxy is intentionally restricted to local development and disabled in production.
 
 ## Verify
 

@@ -16,7 +16,7 @@ Next.js 16 removed `next lint`, so `npm run lint` invokes ESLint directly. The f
 
 `lib/demo-data.js` contains fixed synthetic market bars, opinions and discourse. The D3 chart renders supplied OHLCV closes only; it does not fabricate price history. The dashboard defaults to this demo and labels it. When configured in local development, the page can instead render normalized historical bars and a paper-account/position snapshot from the FastAPI route. The agent opinions, discourse, risk visuals and illustrative decision remain synthetic and are not calculated from that feed.
 
-The Next.js proxy accepts only a same-origin GET for the fixed dashboard resource, holds the shared bearer key server-side, targets loopback HTTP, sends `Cache-Control: no-store`, and returns 404 in production. The backend requires a 32+ character `SENTINEL_API_KEY`, forces the Alpaca paper trading host and exposes no order/cancel/liquidate route. Alpaca credentials were not configured and no external account connection was verified. This local bridge is not user authentication, tenant isolation or production authorization.
+The Next.js proxy accepts only a same-origin GET for the fixed dashboard resource, holds the shared bearer key server-side, targets loopback HTTP, sends `Cache-Control: no-store`, and returns 404 in production. The backend requires a 32+ character `SENTINEL_API_KEY`, forces the Alpaca paper trading host and exposes no order/cancel/liquidate route. A user-authorized read-only paper-account test succeeded through both FastAPI and the local Next.js proxy; it returned paper mode, execution disabled, market bars, and account/position data. No balances or holdings were displayed, and temporary local credential/response files were removed afterward. This test does not establish freshness, live-account access, or production readiness; the local bridge is not user authentication, tenant isolation, or production authorization.
 
 ## Verification
 
@@ -27,5 +27,6 @@ Verified on 2026-10-11 after clean lockfile installation:
 | Frontend | `npm run lint`, `npm run type-check`, `npm test`, `npm run build` | Passed; 23 tests passed; build emitted the React 18 deprecation warning noted above. |
 | Production dependencies | `npm audit --omit=dev --audit-level=high` | Passed; 0 vulnerabilities reported. |
 | Backend | `ruff format --check src plugins tests`, `ruff check src plugins tests`, `mypy src`, `pytest -q` | Passed; 39 tests passed. |
+| Alpaca paper integration | Authenticated FastAPI GET and same-origin Next.js proxy GET | Both returned HTTP 200; response validated paper mode, execution disabled, and market/account/position data. No balances or holdings were displayed; temporary local credential/response files were removed. |
 
 The last full development dependency audit recorded 5 high-severity findings in the transitive `braces@3.0.3` path used by the Next.js ESLint plugin. The advisory was disputed upstream and no patched npm release was available in that review. The production-only audit is clean; do not describe the complete development dependency tree as vulnerability-free. Re-run the full audit before release.
