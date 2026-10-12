@@ -1,17 +1,148 @@
-# sentinel-dashboard
+# Sentinel Dashboard
 
-Sentinel Dashboard — game-inspired trading intelligence UI.
+**Game-inspired trading intelligence interface**
 
-## Current implementation
+Sentinel Dashboard is a React-based interface for exploring market-state information, analytical agent opinions, agent discourse, risk visualization, and decision-oriented trading workflows.
 
-The repository now contains a separate [Python service foundation](backend/README.md) alongside the Next.js dashboard. The backend includes validated plugin manifests, a seeded deterministic local-plugin example, a bounded subprocess runner, and a FastAPI local development API. It also defines provider-neutral Decimal-based market/risk/broker contracts, a generic OpenAI-compatible model gateway adapter, and read-only Alpaca historical-equity-data plus paper account/position adapters.
+> **Current implementation status:** The dashboard supports a local, authenticated, read-only Alpaca paper-data path when server-side credentials are configured. Otherwise it displays a fixed synthetic demo. Agent opinions, discourse, risk visuals and the illustrative verdict remain simulated in either mode. This is not an execution-ready trading system.
 
-The model adapter is compatible with the documented OpenAI chat-completions interface used by [OmniRoute](https://github.com/diegosouzapw/OmniRoute) and [9Router](https://github.com/decolua/9router), subject to each gateway's configured model names and credentials. Alpaca keys are server-side configuration only; its broker read adapter defaults to paper. No provider account was connected while building this foundation.
+## 1. Project Goals
 
-The dashboard currently displays a fixed, clearly labeled synthetic demo scenario; it is not live market data or a trading signal. See [frontend tooling notes](docs/FRONTEND_TOOLING.md) for the pinned Next.js stack, security-baseline rationale, and verification commands.
+Sentinel aims to provide a visual workspace for examining:
 
-## Important limits
+- Market prices, indicators, and market-regime labels.
+- Specialized analytical perspectives, such as technical, macroeconomic, microstructure, sentiment, and fundamental analysis.
+- Agent opinions, stated confidence, rationales, and referenced data fields.
+- Challenges, agreements, and decision events.
+- Risk status and focused analysis views.
+- Future integration with governed trading-intelligence services.
 
-This is an early implementation slice, **not a production-ready trading platform**. The dashboard is not wired to the backend; API routes are not authenticated; persistent encrypted credential management, tenant isolation, audit logging, streaming data, secure marketplace-plugin isolation, durable jobs, billing/marketplace publishing, and release operations remain unimplemented. There is no concrete order-submission, cancellation, liquidation, or live-trading code. The plugin runner is only for trusted, repository-reviewed code and is not a secure sandbox for untrusted plugins.
+The longer-term direction is to evolve from a demonstration interface into a reliable, evidence-grounded trading-intelligence application with explicit risk controls and auditable decisions.
 
-See [backend/README.md](backend/README.md) for setup and [backend/docs/ADAPTER_RESEARCH.md](backend/docs/ADAPTER_RESEARCH.md) for the verified provider behavior and current adapter boundaries.
+## 2. Current Capabilities
+
+The reviewed source includes:
+
+| Component | Current purpose |
+|---|---|
+| `pages/index.jsx` | Dashboard composition, local state, and simulated data initialization |
+| `pages/strategy-validation.jsx` | Separate research-only route for user-supplied historical data |
+| `components/DemoModeBanner.jsx` | Persistent warning that generated market and decision content is simulated |
+| `components/PriceChart.jsx` | D3-based chart of supplied OHLCV bars; no generated price series |
+| `components/PaperAccountPanel.jsx` | Read-only paper-account and open-position summary |
+| `components/AgentRoster.jsx` | Analytical-agent opinion cards |
+| `components/DiscourseTimeline.jsx` | Timeline of opinions, challenges, agreements, and decisions |
+| `components/FocusMode.jsx` | Detail panel for the first predefined analytical perspective |
+| `components/CommandWheel.jsx` | Animated command-wheel interface |
+| `components/EventRail.jsx` | Horizontal event stream |
+| `components/RiskGlow.jsx` | Visual risk-level indicator |
+| `components/StrategyValidationPanel.jsx` | Client-side CSV import, experiment form, metrics, and record export |
+| `lib/strategy-validation.js` | Deterministic daily-bar SMA crossover backtest and data validation |
+
+The interface uses Next.js, React, Tailwind CSS, D3, and Framer Motion.
+
+The dashboard uses fixed synthetic fixtures by default. In local development it attempts a same-origin Next.js server proxy to the FastAPI service; after a successful request, the price chart and account panel show normalized Alpaca historical bars and paper-account/position data. The server proxy is loopback-only, requires a long server-held bearer key, disables caching and is disabled in production. The browser never receives Alpaca credentials or the internal API key. The backend forcibly uses the Alpaca paper trading host and has no order, cancel or liquidation route.
+
+The repository also includes a **research-only Strategy Validation Engine prototype** at `/strategy-validation`. It runs a fixed long-only, equity-style SMA crossover against user-supplied daily OHLCV CSV, models next-open fills and configurable transaction costs, compares a chronological holdout against buy-and-hold, and exports a reproducible JSON experiment record. It is not connected to a market-data provider or any trading/execution service. See the [prototype methodology and limitations](docs/STRATEGY_VALIDATION_ENGINE.md).
+
+The Python service also provides API-key-protected local plugin discovery and execution, with a deterministic example plugin and bounded subprocess runner. Its current runner is for trusted, repository-reviewed plugins, not untrusted marketplace code. See [backend setup and boundaries](backend/README.md) and the [implemented API subset](docs/API_CONTRACT.md).
+
+## 3. What Is Not Yet Verified
+
+The current implementation does not establish:
+
+- A connected Alpaca account or verified live-market feed; credentials were not configured during this work.
+- A production broker connection or any order-execution engine.
+- Persistent storage for analyses, decisions, or trades.
+- A production agent-orchestration backend.
+- User identity/session authentication, tenant isolation or production authorization; the local API bearer token is a development server-to-server guard.
+- A verified account-risk model; the paper panel only renders provider-supplied account and position fields.
+- A tested integration with AEGIS Core.
+- A production-grade audit trail or authorization system.
+
+The presence of simulated opinions and a `BLOCK` verdict does not establish that a real governance or trading-risk engine evaluated the market.
+
+## 4. Technology Stack
+
+The committed manifest and lockfile establish this baseline:
+
+- Next.js `16.4.0`
+- React `18.x` (the current build emits a deprecation warning; Next.js 16 recommends upgrading to React 19 before Next.js 17)
+- Tailwind CSS `4.3.x`
+- D3 `7.x`
+- Framer Motion `11.x`
+- TypeScript `5.x`, configured to check the JavaScript/JSX source
+- ESLint `10.x` with `eslint-config-next` `16.4.0`
+- Node's built-in test runner with `tsx`
+- Node.js `^20.19.0 || ^22.13.0 || >=24.0.0` (declared in `package.json`)
+
+Storybook scripts and dependencies were removed because the repository had no Storybook configuration or stories. The unused Husky/lint-staged setup was also removed.
+
+**Supported browser floor:** Chrome 111+, Edge 111+, Firefox 128+, and Safari 16.4+. These targets are declared in `package.json`'s `browserslist` field, which Next.js uses for its build output. Firefox versions below 128 are unsupported because Tailwind CSS 4 relies on modern CSS features. See the [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide) and [Next.js supported browsers](https://nextjs.org/docs/architecture/supported-browsers).
+
+## 5. Prerequisites
+
+Install Node.js 20.19.x, 22.13.x or later, or 24.x or later, plus npm. The `engines` field records the supported ranges. Then verify the versions:
+
+```bash
+node --version
+npm --version
+```
+
+## 6. Local Setup
+
+Clone the repository and install the exact dependency tree from the committed lockfile:
+
+```bash
+git clone https://github.com/prolificsidekicklabs/sentinel-dashboard.git
+cd sentinel-dashboard
+npm ci
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+Run the supported checks:
+
+```bash
+npm run lint
+npm run type-check
+npm test
+npm run build
+```
+
+**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all 23 frontend tests, the production build, and the production dependency audit passed. Backend format, lint, strict typing, and all 39 backend tests also passed from the pinned Python lockfile. GitHub Actions runs on pull requests to `main` and the documentation-baseline branch and pushes to `main`; see `.github/workflows/ci.yml`, `.github/workflows/backend-ci.yml`, and the PR status checks. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the full security-audit status.
+
+## 7. Architecture and Development Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Development Guide](docs/DEVELOPMENT.md)
+- [API Contract (implemented subset and proposals)](docs/API_CONTRACT.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Threat Model](docs/THREAT_MODEL.md)
+- [Product Roadmap](docs/ROADMAP.md)
+- [Strategy Validation Engine Prototype](docs/STRATEGY_VALIDATION_ENGINE.md)
+- [Contributing Guide](docs/CONTRIBUTING.md)
+
+The API, deployment architecture, threat controls, and roadmap describe proposed implementation direction unless explicitly identified as current code behavior.
+
+## 8. Safety and Financial Disclaimer
+
+This software is not represented as a validated investment adviser, broker, execution platform, or source of reliable real-time financial data.
+
+Simulated prices, agent outputs, confidence values, and risk labels must not be used to make actual trading decisions. Before any live-market use, implement and independently test data provenance, risk limits, authorization, monitoring, failure handling, and operational controls.
+
+The strategy-validation prototype's historical metrics are research-only and do not demonstrate an edge, authorize paper trading, or support live-trading decisions.
+
+## 9. Documentation and Security Status
+
+The code includes a research-only local-file validation prototype, a Python plugin/runtime foundation, an authenticated local API, and paper-only read adapters with an explicit no-execution response contract. No Alpaca credentials or external account were connected during implementation; adapter behavior is verified with mocked provider responses. The paper-data proxy is disabled in production, and no user-login/session system, durable secret store, tenant isolation, audit service, or secure untrusted-plugin sandbox is implemented. Review the [development guide](docs/DEVELOPMENT.md), [threat model](docs/THREAT_MODEL.md), [deployment guide](docs/DEPLOYMENT.md), and [backend limits](backend/README.md) before use.
+
+The production dependency audit (`npm audit --omit=dev`) reports no known vulnerabilities. The full development audit reports **5 high-severity findings** through the transitive `braces@3.0.3` dependency used by the Next.js ESLint plugin; no patched npm release was available when checked and the upstream advisory is disputed ([upstream issue](https://github.com/micromatch/braces/issues/73)). Next.js has also announced another security update for October 14, 2026, but had not published affected-version details at the time of the previous review ([announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)). Re-run audits and update dependencies before release.
+
+Last reviewed: 2026-10-11.

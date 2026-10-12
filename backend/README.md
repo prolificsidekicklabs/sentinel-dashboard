@@ -1,6 +1,6 @@
 # Sentinel Python Service Foundation
 
-This folder adds a small Python service alongside the existing Next.js dashboard. It is an early **contract and local-runtime foundation**, not a production trading backend. The dashboard is not yet wired to this API.
+This folder contains the Python service alongside the Next.js dashboard. It is an early **contract and local-runtime foundation**, not a production trading backend. The local Next.js development server is wired to the authenticated, read-only paper dashboard route; no provider account or credentials were connected while this code was implemented.
 
 ## Run locally
 
@@ -11,10 +11,14 @@ python -m venv .venv
 . .venv/bin/activate
 python -m pip install -r requirements.lock
 python -m pip install -e . --no-deps
-uvicorn sentinel_core.api:app --app-dir src --reload
+uvicorn sentinel_core.api:app --app-dir src --host 127.0.0.1 --port 8000 --reload
 ```
 
-The API listens at `http://127.0.0.1:8000` by default. `GET /healthz`, `GET /api/v1/plugins`, and `POST /api/v1/plugins/{plugin_id}/run` are local development routes. OpenAPI docs are available at `/docs` during development. These routes are not authenticated and must not be exposed publicly as-is.
+The API listens at `http://127.0.0.1:8000`. Only `GET /healthz` is public. Plugin routes and `GET /api/v1/paper/dashboard` require a server-to-server bearer token in `SENTINEL_API_KEY`; the token must be at least 32 characters. OpenAPI docs are available at `/docs` during development. Do not bind this service to a public interface.
+
+The paper dashboard route fetches bounded historical bars and paper-account/position data, then returns normalized decimal strings, source and timestamps, `paper: true`, and `execution_enabled: false`. It does not return the provider account ID. Its broker URL is forcibly set to `https://paper-api.alpaca.markets` even if a live URL or live-read opt-in is present in the environment. The service exposes no order, cancel, or liquidation route.
+
+For a local dashboard connection, set the same strong `SENTINEL_API_KEY` in this service and the Next.js server's root `.env.local`. Put Alpaca paper credentials only in the backend process environment. See [the development guide](../docs/DEVELOPMENT.md) for the exact two-terminal setup. If configuration is absent, the dashboard safely stays in its fixed synthetic demo mode.
 
 ## Model gateway adapter
 
@@ -26,7 +30,7 @@ Configuration names are in `.env.example`. Copy values into the **backend proces
 
 `AlpacaMarketDataAdapter` fetches bounded, paginated historical U.S.-equity bars and normalizes values to `Decimal`, with timestamps, feed and provider provenance preserved. The default feed is `iex`; the account's Alpaca market-data subscription controls coverage, delay, history and rate limits.
 
-`AlpacaReadOnlyBrokerAdapter` reads account summary and open positions from the **paper** Trading API by default. It has no order, cancel, or liquidation method. Live-account reads require an explicit server-side opt-in. The adapter uses Alpaca Trading API key headers from `SENTINEL_ALPACA_KEY_ID` and `SENTINEL_ALPACA_SECRET_KEY`. These credentials are not stored in the browser, database, or source tree.
+`AlpacaReadOnlyBrokerAdapter` reads account summary and open positions from the **paper** Trading API by default. It has no order, cancel, or liquidation method. The dashboard API forces paper mode regardless of live-read environment flags. The adapter uses Alpaca Trading API key headers from `SENTINEL_ALPACA_KEY_ID` and `SENTINEL_ALPACA_SECRET_KEY`. These credentials are not stored in the browser, database, or source tree.
 
 ## Contracts and deterministic boundaries
 
@@ -45,7 +49,7 @@ Plugin code runs in a fresh Python subprocess with a scrubbed environment, tempo
 
 ## Known production gaps
 
-The current service does not yet provide user authentication/authorization, tenant isolation, encrypted persistent secret storage, audited connection management, rate limiting, durable jobs, a database, live data streams, a secure untrusted-plugin sandbox, CI publishing, marketplace/payout flows, broker order execution, or frontend-to-backend integration. No live data or trading account was connected during this implementation.
+The current service does not yet provide user identity/session authentication, role-based authorization, tenant isolation, encrypted persistent secret storage, audited connection management, rate limiting, durable jobs, a database, live data streams, a secure untrusted-plugin sandbox, CI publishing, marketplace/payout flows, or broker order execution. API behavior and provider adapters are tested with mocks; no external Alpaca account was connected. The Next.js proxy is intentionally restricted to local development and disabled in production.
 
 ## Verify
 
