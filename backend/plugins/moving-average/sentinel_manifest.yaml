@@ -1,0 +1,9 @@
+manifest_version: "1.0"
+plugin_id: moving-average
+name: Moving Average Indicator
+version: 0.1.0
+plugin_type: indicator
+entrypoint: plugin:MovingAveragePlugin
+permissions: []
+deterministic: true
+description: Computes a simple moving average over caller-supplied prices for local research.

@@ -17,13 +17,21 @@ The current implementation is a client-rendered dashboard assembled from React c
 ```text
 pages/index.jsx
     |
-    +-- Mock market-state generator
+    +-- Fixed synthetic market fixture (safe fallback)
     |
-    +-- Mock analytical-agent opinions
+    +-- Same-origin local provider proxy (development only; two allowlisted GETs)
+          |
+          +-- Server-held bearer token
+          +-- FastAPI /api/v1/paper/dashboard
+                |
+                +-- Alpaca historical bars adapter
+                +-- Alpaca paper account/positions adapter
+          +-- FastAPI /api/v1/research/strategies/rsi-macd-candidate
+                +-- Read-only market bars; no account or position data
     |
-    +-- Mock discourse events
+    +-- Fixed synthetic analytical-agent opinions
     |
-    +-- Simulated loading delay
+    +-- Fixed synthetic discourse events
     |
     +-- Dashboard state
           |
@@ -34,6 +42,7 @@ pages/index.jsx
           +-- RiskGlow
           +-- FocusMode
           +-- CommandWheel
+          +-- ResearchCandidatePanel (manual request; development only)
 
 pages/strategy-validation.jsx
     |
@@ -42,9 +51,17 @@ pages/strategy-validation.jsx
           |
           +-- SMA crossover backtest and buy-and-hold comparison
           +-- Downloadable experiment record
+
+GET /api/v1/research/strategies/rsi-macd-candidate
+    |
+    +-- Authenticated FastAPI route
+    +-- Read-only Alpaca historical bars
+    +-- Deterministic, isolated RSI/MACD/EMA plugin
+    +-- Typed candidate signal
+    +-- Independent CandidateRiskGate (review-only; never execution authorization)
 ```
 
-The main dashboard page creates simulated data locally and stores it in React state. The price chart generates a synthetic series from the simulated current price. The persistent demo banner, agent-roster heading, and discourse heading identify these values and predefined objects as illustrative, not live or analytical output. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. That prototype does not fetch data, upload the file, persist runs on a server, or submit orders; its assumptions and limitations are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md).
+The main dashboard defaults to fixed synthetic fixtures. In local development, the paper-account view and manually triggered candidate panel use two fixed same-origin GET routes to the FastAPI service; the proxy keeps the bearer key server-side, enforces same-origin and loopback HTTP, disables caching, and refuses production use. FastAPI forces Alpaca's paper trading host for account reads. The candidate route reads market bars only and returns no account or position fields. The chart draws only supplied bars. Agent opinions, discourse, risk glow and illustrative verdict remain fixed synthetic examples and are not computed from provider data. User-authorized read-only paper and candidate checks were verified locally; temporary credentials and response artifacts were removed afterward. This does not verify live-account access or market-data freshness. Separately, `/strategy-validation` accepts a user-selected historical CSV, validates basic shape and chronology, and runs a deterministic SMA crossover engine in the browser. The authenticated candidate-strategy route runs a local plugin in the bounded subprocess, validates its typed signal, and applies a separate fail-closed review gate. That gate checks market-data quality/freshness and contract consistency; eligible candidates still require human review, account exposure and sizing are unassessed, and execution is structurally disabled. Neither strategy path submits orders; the browser prototype's assumptions are documented in the [Strategy Validation Engine guide](STRATEGY_VALIDATION_ENGINE.md), while the backend plugin and Alpaca SDK review are documented in [Candidate Strategy](../backend/docs/CANDIDATE_STRATEGY.md).
 
 The command wheel no longer uses browser alerts. It provides explicit demo-only status messages, scrolls to the illustrative discourse, or links to the local-file validation prototype. It does not connect to an analysis, vault, account-settings, language-model, performance, or trading service.
 
@@ -58,7 +75,7 @@ The command wheel no longer uses browser alerts. It provides explicit demo-only 
 
 ### 3.2 Application layer
 
-**Current:** Dashboard state and simulated data initialization are located in `pages/index.jsx`. The separate validation route and user interaction live in `pages/strategy-validation.jsx` and `components/StrategyValidationPanel.jsx`; the pure simulation functions live in `lib/strategy-validation.js`.
+**Current:** `pages/index.jsx` selects a fixed demo or validated paper response. `ResearchCandidatePanel` sends a user-triggered, same-origin candidate request only in local development; `lib/research-candidate.js` validates the strict typed response and non-execution flags. `lib/paper-dashboard.js` validates the separate paper response, while `pages/api/sentinel/[resource].js` delegates to the local server proxy. The separate validation route and user interaction live in `pages/strategy-validation.jsx` and `components/StrategyValidationPanel.jsx`; pure simulation functions live in `lib/strategy-validation.js`.
 
 **Future:** Move orchestration into explicit application services. A service should own one defined operation, such as requesting market state, submitting an analysis request, or retrieving an approved decision record.
 
@@ -70,13 +87,13 @@ The command wheel no longer uses browser alerts. It provides explicit demo-only 
 
 ### 3.4 Data layer
 
-**Current:** The dashboard initializes synthetic data in memory. The validation prototype processes a user-provided CSV in browser memory and downloads an experiment JSON record; no provider, server upload, or persistent database integration is established.
+**Current:** The dashboard has a local, optional Alpaca read-only paper data path plus a fixed synthetic fallback. The validation prototype processes a user-provided CSV in browser memory and downloads an experiment JSON record. The manually triggered candidate panel requests normalized daily bars only and displays a typed research signal plus review-gate outcome; it does not fetch paper account or position data. One-time paper-read and candidate checks were verified locally, but there is no persistent database, production provider secret store, or live-feed service.
 
 **Future:** Separate raw market observations, normalized market state, analytical assessments, decisions, risk evaluations, and execution records. Maintain source identifiers and event timestamps.
 
 ### 3.5 Integration layer
 
-**Current:** AEGIS Core and broker integrations have not been verified.
+**Current:** The Alpaca adapters are exercised with mocked provider responses, and a user-authorized read-only paper-account check returned normalized market bars and paper account/position data through the local route. The research candidate route reuses only the read-only market-data adapter. No live account, execution integration, or freshness guarantee has been verified. AEGIS Core and broker execution have not been implemented.
 
 **Future:** Use explicit service interfaces and least-privilege credentials. Integrations must not be able to circumvent policy enforcement, risk checks, or authorization requirements.
 
@@ -113,6 +130,7 @@ Governance / Authorization
 Cross-cutting services should provide identity, observability, audit records, configuration management, and failure handling.
 
 This is a proposed design, not a description of deployed services.
+Potential open-source research references are catalogued in [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md). The directory is not an audit or endorsement; no source code or dependency is adopted, and AEGIS remains the proposed authority and governance layer.
 
 ## 5. Canonical Domain Objects
 
@@ -229,13 +247,13 @@ The dashboard should consume governed records rather than become the authority f
 
 ## 7. Current Technical Risks to Verify
 
-1. The dashboard initializes simulated market state with random values.
-2. The chart synthesizes historical-looking prices rather than rendering a verified market feed.
+1. A paper-account read-only connection was verified for a local dashboard request; this does not validate live-account access, all feed entitlements, freshness policy, or production reliability. The fallback fixture is fixed and labeled synthetic.
+2. The chart renders only supplied OHLCV bars. The successful paper read confirms one provider path, not freshness or a reliability guarantee for future market data.
 3. Agent confidence and rationales are predefined examples.
 4. The simulated verdict is not evidence of a real risk engine.
-5. The command wheel uses browser alerts rather than application commands.
-6. Focus Mode and the main page should be checked for data-shape and rendering errors.
-7. Next.js ESLint plugins still emit non-fatal ESLint 10 peer-range warnings during installation; lint currently passes, but this peer compatibility should be rechecked on upgrades.
+5. The command wheel provides demo-only feedback/navigation; no analytical service action is wired to it.
+6. Focus Mode still selects the first predefined agent and is not driven by paper-data outputs.
+7. Next.js ESLint plugins emit non-fatal ESLint 10 peer-range warnings; lint passes, but plugin compatibility should be rechecked on upgrades. React 18 also has a Next.js 16 deprecation warning.
 8. The strategy prototype's execution-cost assumptions are user-entered estimates, and its end-of-segment liquidation is a valuation convention rather than a guaranteed fill.
 
 ## 8. Architecture Acceptance Criteria

@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
@@ -17,16 +13,17 @@
     "resolveJsonModule": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "plugins": [{"name": "next"}]
   },
   "include": [
-    "pages/**/*.js",
-    "pages/**/*.jsx",
-    "components/**/*.js",
-    "components/**/*.jsx"
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx"
   ],
-  "exclude": [
-    "node_modules",
-    ".next"
-  ]
+  "exclude": ["node_modules", ".next", "backend"]
 }

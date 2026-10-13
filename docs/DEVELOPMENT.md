@@ -9,6 +9,7 @@ This guide explains how to install, run, inspect, and extend Sentinel Dashboard.
 Install:
 
 - Node.js `^20.19.0 || ^22.13.0 || >=24.0.0` (the repository engine range; Next.js 16 itself has a lower minimum).
+- Python 3.11 or newer for the FastAPI service.
 - npm.
 - Git.
 - A code editor with JavaScript and JSX support.
@@ -43,6 +44,44 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+### Optional local paper-data bridge
+
+The dashboard starts in fixed synthetic demo mode and keeps doing so if the backend or Alpaca is not configured. To enable the optional **read-only paper** view:
+
+1. Create a long random API token with `python3 -c 'import secrets; print(secrets.token_urlsafe(48))'`.
+2. Copy `backend/.env.example` to the ignored `backend/.env`. Set `SENTINEL_API_KEY` to that token and add an Alpaca **paper-account** key ID and secret. Do not use live account credentials.
+3. Copy `.env.local.example` to `.env.local` and set `SENTINEL_API_KEY` to the same token. Do not prefix it with `NEXT_PUBLIC_`; the key must remain server-side.
+4. In one terminal, start the backend from `backend/`:
+
+   ```bash
+   python3 -m venv .venv
+   . .venv/bin/activate
+   python -m pip install -r requirements.lock
+   python -m pip install -e . --no-deps
+   set -a
+   . ./.env
+   set +a
+   uvicorn sentinel_core.api:app --app-dir src --host 127.0.0.1 --port 8000
+   ```
+
+5. In another terminal at the repository root, run `npm run dev`, then use **Refresh paper data** for the paper account view. The separate candidate panel below the chart stays idle until you enter a ticker and select **Run research-only check**.
+
+The browser can reach only a same-origin Next.js proxy; the proxy targets loopback HTTP, holds the shared bearer token server-side, and sends only two fixed GET reads: the paper dashboard or the market-only candidate endpoint. Candidate requests are manual; the browser validates the typed response and sends no bearer credential itself. FastAPI rejects missing or incorrect keys and forces paper mode for the paper account route. The chart/account panel and candidate result appear only after their respective successful validated responses. Opinions, discourse and risk visuals remain synthetic. Both provider proxy resources are disabled in production; this is not a user-login or production authorization system. Prior user-authorized read-only paper and candidate checks succeeded locally, with candidate data containing no account or position fields. No balances or holdings were displayed; temporary local credentials, response files, server, and bearer token were removed. Automated provider tests remain mocked.
+
+### Research-only candidate panel and API
+
+The dashboard's **RSI/MACD candidate review** panel starts without making a provider request. In local development, enter a ticker and choose **Run research-only check**. The request goes through the allowlisted same-origin proxy to the authenticated market-bars route. The panel validates plugin/version, ticker, daily timeframe, source and data quality, bar count, timestamps, review disposition, required unassessed-risk disclosures, and fixed `execution_enabled: false` fields before rendering. Non-valid market data or insufficient history cannot be presented as eligible for human review. Production builds disable the panel and the server proxy independently refuses provider access.
+
+With the backend running and `SENTINEL_API_KEY` loaded in the shell, the route can also be requested directly:
+
+```bash
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer $SENTINEL_API_KEY" \
+  "http://127.0.0.1:8000/api/v1/research/strategies/rsi-macd-candidate?symbol=SPY"
+```
+
+The endpoint reads up to 365 calendar days of daily market bars only. It returns indicator values, one typed candidate label, and an independent review-gate result; it does not read the paper account or positions. The result may be blocked, contain no candidate, or require human review, and always has `execution_enabled: false`. The generic plugin-run route refuses strategy plugins with HTTP 409 so callers cannot bypass the gate. The review gate does not assess account exposure, position sizing, or stop-loss/drawdown limits; it is not trade authorization. See [Candidate Strategy](../backend/docs/CANDIDATE_STRATEGY.md) for formula details and the Alpaca SDK review.
+
 Build and run the production application:
 
 ```bash
@@ -59,27 +98,30 @@ npm run start
 | `start` | Start the production server |
 | `lint` | Run the ESLint CLI with the Next.js Core Web Vitals config |
 | `type-check` | Run TypeScript over the JavaScript/JSX project (`allowJs` and `checkJs`) |
-| `test` | Run component and strategy-engine tests with Node's built-in test runner and `tsx` |
+| `test` | Run component, strategy-engine, response-schema, and server-proxy tests with Node's built-in test runner and `tsx` |
 
 Next.js 16 removed `next lint`; linting now runs through ESLint directly. Unconfigured Storybook and unused Husky/lint-staged scripts and dependencies were removed because no stories, Storybook configuration, hooks, or lint-staged rules existed in the repository.
 
 ## 6. Continuous Integration
 
-`.github/workflows/ci.yml` runs `npm ci`, lint, type-check, tests, and the production build on pull requests targeting `main` and pushes to `main`, using Node.js 24. Local results do not guarantee that a hosted workflow is enabled or passes; check the pull request's status checks.
+`.github/workflows/ci.yml` runs `npm ci`, lint, type-check, tests, a production dependency audit, and the production build. `.github/workflows/backend-ci.yml` runs Python formatting, lint, type checks for core and the candidate plugin, and tests. Both workflows include the PR #2 and PR #3 feature branches as pull-request targets so stacked PRs are checked. Local results do not guarantee that a hosted workflow is enabled or passes; check the pull request's status checks.
 
-## 7. Verification Run (2026-10-11)
+## 7. Verification Run (2026-10-12)
 
 Commands were run against the committed package manifest and lockfile on Node.js `24.19.0` and npm `11.17.0`.
 
 | Command | Result |
 |---|---|
-| `npm ci` | Passed; installed the committed lockfile. npm reported allow-scripts and ESLint peer-dependency warnings, but no install failure. |
+| `npm ci` | Passed from the reconciled lockfile; npm reported ESLint peer-range/deprecation warnings, but no install failure. |
 | `npm run lint` | Passed with ESLint 10.12.0 and `eslint-config-next` 16.4.0. |
-| `npm run type-check` | Passed; TypeScript checks the repository's JavaScript and JSX files, including the D3 datum and Motion animation props. |
-| `npm test` | Passed; 15 tests total: five server-rendered component tests and ten strategy-engine tests. |
+| `npm run type-check` | Passed; TypeScript checks the JavaScript/JSX application and local API proxy/test helpers. |
+| `npm test` | Passed; 31 tests across dashboard components, candidate response validation, deterministic fixtures, paper response validation, proxy behavior, and strategy validation. |
 | `npm run build` | Passed; Next.js 16.4.0 generated the production build. The build warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. |
-| `npm audit --omit=dev` | Passed with zero reported production dependency vulnerabilities. |
-| `npm audit` | Reports 5 high, 0 moderate, 0 low, and 0 critical findings, stemming from `braces@3.0.3` in the `eslint-config-next` development dependency path. The Tailwind 3 dependency path is removed. |
+| `npm audit --omit=dev --audit-level=high` | Passed with zero reported production dependency vulnerabilities. |
+| Backend `ruff format --check`, `ruff check`, `mypy src plugins/rsi-macd-candidate/plugin.py`, `pytest -q` | Passed; 58 backend tests, including candidate/plugin and provider-integrity coverage. |
+| One-time Alpaca paper-data integration check | Authenticated FastAPI GET and same-origin Next.js proxy GET returned HTTP 200 with paper mode, execution disabled, and market/account/position data present; no balances or holdings were displayed, and temporary local credential/response files were removed. |
+| One-time research-candidate integration check | Authenticated FastAPI GET and same-origin Next.js proxy GET returned HTTP 200 with 250 valid SPY daily bars and a `review_required` result; the response contained no account or position data and execution remained disabled. |
+| Last full `npm audit` | Reported 5 high, 0 moderate, 0 low, and 0 critical findings, stemming from `braces@3.0.3` in the `eslint-config-next` development dependency path. Re-run the full development audit before release; the production-only audit is clean. |
 
 The reported `braces` advisory is [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm). No patched npm release was available at the time of review; the upstream discussion reports that the advisory is disputed and no fix release is planned ([maintainer issue](https://github.com/micromatch/braces/issues/73)). Do not describe the full dependency tree as vulnerability-free. Re-run `npm audit` when upstream status changes.
 
@@ -105,9 +147,15 @@ components/
   FocusMode.jsx
   PriceChart.jsx
   RiskGlow.jsx
+  ResearchCandidatePanel.jsx
   StrategyValidationPanel.jsx
   dashboard-components.test.jsx
+  ResearchCandidatePanel.test.jsx
 lib/
+  research-candidate.js
+  research-candidate.test.js
+  sentinel-api-proxy.js
+  sentinel-api-proxy.test.js
   strategy-validation.js
   strategy-validation.test.js
 styles/
@@ -125,17 +173,18 @@ docs/
   DEPLOYMENT.md
   THREAT_MODEL.md
   ROADMAP.md
+  QUANT_RESEARCH_ECOSYSTEM.md
   STRATEGY_VALIDATION_ENGINE.md
   CONTRIBUTING.md
 ```
 
 ## 9. Data and Component Contracts
 
-Current components accept JavaScript objects through props. For example, `PriceChart` expects a market-data object, while `AgentRoster` expects an array of agent opinion objects. The `type-check` script parses and checks these JS/JSX sources using TypeScript's `allowJs` and `checkJs` options; it does not turn them into a fully typed TypeScript application.
+`lib/paper-dashboard.js` validates the server response with a strict Zod schema before it reaches the page. `PriceChart` draws only the provided bars; it no longer synthesizes a series. The account panel receives normalized decimal strings and formats them for display. Agent opinions and discourse remain separate fixed demo objects. The `type-check` script checks the JS/JSX sources using TypeScript's `allowJs` and `checkJs` options; it does not turn them into a fully typed TypeScript application.
 
-Before replacing simulated data with a provider:
+Before extending the provider integration:
 
-1. Define canonical schemas.
+1. Keep canonical schemas versioned and strict.
 2. Validate inputs at the application boundary.
 3. Represent loading, empty, stale, and error states separately.
 4. Ensure timestamps and units are explicit.
@@ -170,7 +219,7 @@ Run only commands supported by the actual repository configuration; do not assum
 
 ### Current component tests
 
-`npm test` uses Node's built-in `node:test` runner with `tsx` to render selected components to static markup. The five component tests check the explicit synthetic-data warning, simulated agent/discourse labels, command-menu demo messaging and local links, Focus Mode market data/opinion output, and basic component rendering. They are a small regression baseline, not full DOM, browser, or end-to-end coverage.
+`npm test` uses Node's built-in `node:test` runner with `tsx` to render selected components to static markup and exercise pure boundary helpers. It includes deterministic-fixture, response-schema, and proxy tests; they are a regression baseline, not full DOM, browser, or end-to-end coverage.
 
 ### Strategy engine unit tests
 
@@ -178,7 +227,7 @@ Ten pure-engine tests cover strict CSV quoting/column/date rules, OHLC and direc
 
 ### Recommended next layers
 
-- **Unit tests:** pure transformations, schema validation, indicator calculations, and risk-policy functions.
+- **Unit tests:** pure transformations, schema validation, indicator calculations, candidate review-gate checks, and future account-aware risk-policy functions.
 - **Component tests:** empty states, invalid input handling, accessibility, and user interactions.
 - **Integration tests:** the flow from a validated market snapshot through assessment display and decision rendering.
 - **End-to-end tests:** loading, errors, stale data, keyboard navigation, and responsive layout.
@@ -187,8 +236,10 @@ Ten pure-engine tests cover strict CSV quoting/column/date rules, OHLC and direc
 ## 12. Known Limitations and Follow-Ups
 
 - `FocusMode` still presents `data.agents[0]`; it does not let a user select another agent.
-- `CommandWheel` still uses browser alerts for placeholder commands; replace these before building production workflows.
-- The market snapshot, chart series, agent opinions, and event log are synthetic. They are not live or investment-grade data.
+- Automated provider behavior is covered by mocked tests; separate user-authorized read-only paper/proxy and candidate market-data checks succeeded. The candidate panel is local-development-only and user-triggered; its route has no account/position reads or order integration. Live access and provider freshness guarantees remain unverified.
+- The shared bearer token is a local development guard, not user identity, per-user authorization, or tenant isolation. The production proxy is disabled.
+- The paper route does not implement a server-side freshness policy, durable audit trail, or account consent workflow.
+- Agent opinions, discourse, risk labels and verdict remain fixed synthetic content and are not based on provider data.
 - The strategy-validation prototype consumes user-supplied daily bars, but does not authenticate or independently validate their source, corporate-action adjustments, or survivorship properties; its results do not establish a trading edge.
 - React 18 works with the current build but triggers a Next.js 16 deprecation warning; plan migration to React 19 before upgrading to Next.js 17.
 - The full npm audit retains the development-only `braces@3.0.3` advisory described above. Production dependencies have no reported audit findings as of this verification.

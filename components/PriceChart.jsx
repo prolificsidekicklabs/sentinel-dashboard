@@ -1,92 +1,93 @@
-"use client"
+'use client'
 
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 
+const EMPTY_BARS = []
+
 export default function PriceChart({ data }) {
-  const svgRef = useRef()
+  const svgRef = useRef(null)
+  const bars = Array.isArray(data?.bars) ? data.bars : EMPTY_BARS
+  const lastBar = bars.length > 0 ? bars[bars.length - 1] : null
+  const displayPrice = data?.price ?? (lastBar ? Number(lastBar.close) : null)
+  const displayTimestamp = data?.timestamp ?? lastBar?.observed_at
 
   useEffect(() => {
-    if (!data || !svgRef.current) return
+    if (!svgRef.current) return
 
     const svg = d3.select(svgRef.current)
-    svg.selectAll("*").remove()
+    svg.selectAll('*').remove()
 
-    const margin = { top: 20, right: 20, bottom: 30, left: 40 }
+    /** @type {Array<{ date: Date, price: number }>} */
+    const priceData = bars
+      .map((bar) => ({ date: new Date(bar.observed_at), price: Number(bar.close) }))
+      .filter((item) => Number.isFinite(item.date.getTime()) && Number.isFinite(item.price))
+
+    if (priceData.length === 0) return
+
+    const margin = { top: 20, right: 20, bottom: 34, left: 54 }
     const width = 800 - margin.left - margin.right
     const height = 400 - margin.top - margin.bottom
-
     const chart = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
+    const x = d3.scaleTime()
+      .domain([priceData[0].date, priceData[priceData.length - 1].date])
+      .range([0, width])
+    const prices = priceData.map((item) => item.price)
+    const minimum = Math.min(...prices)
+    const maximum = Math.max(...prices)
+    const padding = Math.max((maximum - minimum) * 0.08, Math.abs(maximum) * 0.002, 0.01)
+    const y = d3.scaleLinear()
+      .domain([minimum - padding, maximum + padding])
+      .nice()
+      .range([height, 0])
 
-    // Generate mock price data
-    const priceData = Array.from({ length: 100 }, (_, i) => (
-      {
-        date: new Date(Date.now() - (100 - i) * 60000),
-        price: data.price + (Math.sin(i * 0.2) * 5) + (i % 20 === 0 ? 3 : 0)
-      }
-    ))
-
-    const x = d3.scaleTime().domain(d3.extent(priceData, d => d.date)).range([0, width])
-    const y = d3.scaleLinear().domain([
-      d3.min(priceData, d => d.price) - 5,
-      d3.max(priceData, d => d.price) + 5
-    ]).range([height, 0])
-
-    // Add X axis
     chart.append('g')
       .attr('transform', `translate(0,${height})`)
-      .call(d3.axisBottom(x))
+      .call(d3.axisBottom(x).ticks(Math.min(priceData.length, 8)))
+    chart.append('g').call(d3.axisLeft(y).ticks(6))
 
-    // Add Y axis
-    chart.append('g').call(d3.axisLeft(y))
+    /** @type {Array<[number, number]>} */
+    const chartPoints = priceData.map((item) => [item.date.getTime(), item.price])
+    const line = d3.line()
+      .x((point) => x(point[0]))
+      .y((point) => y(point[1]))
+      .curve(d3.curveMonotoneX)
 
-    // Add price line
-    const line = /** @type {import('d3-shape').Line<{ date: Date; price: number }>} */ (
-      d3.line()
-    )
-      .x(d => x(d.date))
-      .y(d => y(d.price))
     chart.append('path')
-      .datum(priceData)
+      .datum(chartPoints)
       .attr('fill', 'none')
       .attr('stroke', '#4f46e5')
       .attr('stroke-width', 2)
       .attr('d', line)
 
-    // Add current price marker
+    const last = priceData[priceData.length - 1]
     chart.append('circle')
-      .attr('cx', x(priceData[priceData.length - 1].date))
-      .attr('cy', y(priceData[priceData.length - 1].price))
-      .attr('r', 5)
-      .attr('fill', data.regime === 'high_volatility' ? '#ef4444' :
-                   data.regime === 'low_volatility' ? '#10b981' : '#f59e0b')
-
-    // Add regime label
-    chart.append('text')
-      .attr('x', width - 100)
-      .attr('y', 20)
-      .attr('fill', data.regime === 'high_volatility' ? '#ef4444' :
-                   data.regime === 'low_volatility' ? '#10b981' : '#f59e0b')
-      .attr('font-weight', 'bold')
-      .text(`Regime: ${data.regime}`)
-
-  }, [data])
+      .attr('cx', x(last.date))
+      .attr('cy', y(last.price))
+      .attr('r', 4)
+      .attr('fill', '#4f46e5')
+  }, [bars])
 
   return (
-    <div className="price-chart p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-      <h2 className="text-xl font-bold mb-4">Market Data: {data.instrument}</h2>
-      <svg ref={svgRef} className="w-full h-96"></svg>
-      <div className="mt-2 flex justify-between text-sm">
+    <section className="price-chart rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800" aria-label="Historical market data">
+      <h2 className="mb-1 text-xl font-bold">Market data: {data?.instrument ?? 'Unavailable'}</h2>
+      <p className="mb-2 text-xs text-gray-600 dark:text-gray-300">
+        Source: {data?.source_id ?? 'not available'} · {bars.length} OHLCV bars
+      </p>
+      {bars.length > 0 ? (
+        <svg ref={svgRef} className="h-96 w-full" viewBox="0 0 800 400" role="img" aria-label={`${data?.instrument ?? 'Instrument'} closing prices from historical OHLCV bars`} />
+      ) : (
+        <p className="rounded border border-gray-300 p-6 text-sm text-gray-700 dark:border-gray-600 dark:text-gray-200">
+          No valid historical bars are available for this view.
+        </p>
+      )}
+      <div className="mt-2 flex flex-wrap justify-between gap-3 text-sm">
         <div>
-          <div>Price: {data.price?.toFixed(2)}</div>
-          <div>Timestamp: {new Date(data.timestamp).toLocaleString()}</div>
+          <div>Latest close: {Number.isFinite(Number(displayPrice)) ? Number(displayPrice).toFixed(2) : '—'}</div>
+          <div>Observed: {displayTimestamp ? new Date(displayTimestamp).toLocaleString() : '—'}</div>
         </div>
-        <div>
-          <div>RSI: {data.indicators?.rsi?.toFixed(2)}</div>
-          <div>Spread: {data.order_book?.spread?.toFixed(2)}</div>
-          <div>Regime: {data.regime}</div>
-        </div>
+        {data?.regime && <div>Simulated regime: {data.regime}</div>}
       </div>
-    </div>
+    </section>
   )
 }

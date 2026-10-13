@@ -2,13 +2,13 @@
 
 ## 1. Status and Scope
 
-This remains a proposed deployment guide. The repository's install/build/check baseline is verified, but no production deployment, hosting provider, backend service, database, or CI/CD pipeline is established.
+This remains a proposed deployment guide. The repository includes a Next.js dashboard and a Python FastAPI service, but no production deployment, hosting provider, database, user identity system, or operational CI/CD release pipeline is established. The local provider proxy and the dashboard candidate panel are disabled in production by design.
 
 ## 2. Current Application Profile
 
-The package manifest identifies a Next.js application with development, build, and production-start scripts.
+The package manifest identifies a Next.js application with development, build, and production-start scripts. The `backend/` folder contains an authenticated FastAPI development service with paper-only and research-candidate read routes, plus plugin routes. The candidate panel requires a user-triggered request and is available only in local development.
 
-`npm ci`, lint, type-check, tests, and the production build passed on Node.js `24.19.0` and npm `11.17.0`. Repeat these checks on the target host and verify its runtime configuration before deployment.
+`npm ci`, lint, type-check, tests, and the production build passed on Node.js `24.19.0` and npm `11.17.0`; backend format/lint/type/test checks use the pinned `backend/requirements.lock`. Repeat both suites on the target host and verify its runtime configuration before deployment.
 
 The supported browser floor is Chrome 111+, Edge 111+, Firefox 128+, and Safari 16.4+; it is declared in `package.json` and required by the Tailwind CSS 4 build.
 
@@ -52,7 +52,7 @@ The selected platform must support the chosen Next.js runtime and any required s
 
 ## 6. Environment Configuration
 
-The current reviewed dashboard does not establish a required external API credential. Do not add unnecessary secrets merely in anticipation of future integrations.
+The local paper-data flow requires a strong `SENTINEL_API_KEY` in both the Next.js server environment and the FastAPI process, plus Alpaca **paper-account** credentials only in the backend process. The browser proxy never receives the Alpaca credentials or internal bearer key. See [the backend setup guide](../backend/README.md) and [development guide](DEVELOPMENT.md) for local-only commands. The checked-in environment templates contain names only, not values.
 
 When providers and services are introduced:
 
@@ -65,6 +65,8 @@ When providers and services are introduced:
 - Never expose secret values through client-side environment variables or logs.
 
 A future environment template may document variable names and descriptions, but it must never contain actual secrets.
+
+Do not deploy the local paper proxy as-is. Before any production data access, implement and independently review user authentication, authorization, tenant separation, CSRF/session controls, protected secret storage, audit logging, rate limits, network policy, provider failure monitoring, and explicit account consent. The current backend API-key guard is a single shared development token, not a per-user identity or production authorization system.
 
 ## 7. Deployment Pipeline
 

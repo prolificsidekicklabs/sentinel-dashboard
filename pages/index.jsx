@@ -1,192 +1,169 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import DemoModeBanner from '../components/DemoModeBanner'
 import AgentRoster from '../components/AgentRoster'
-import PriceChart from '../components/PriceChart'
-import DiscourseTimeline from '../components/DiscourseTimeline'
-import FocusMode from '../components/FocusMode'
 import CommandWheel from '../components/CommandWheel'
-import RiskGlow from '../components/RiskGlow'
+import DemoModeBanner from '../components/DemoModeBanner'
+import DiscourseTimeline from '../components/DiscourseTimeline'
 import EventRail from '../components/EventRail'
+import FocusMode from '../components/FocusMode'
+import PaperAccountPanel from '../components/PaperAccountPanel'
+import PriceChart from '../components/PriceChart'
+import ResearchCandidatePanel from '../components/ResearchCandidatePanel'
+import RiskGlow from '../components/RiskGlow'
+import { DEMO_AGENT_OPINIONS, DEMO_DISCOURSE_LOG, DEMO_MARKET_STATE } from '../lib/demo-data'
+import { parsePaperDashboard, toMarketChartData } from '../lib/paper-dashboard'
+
+const DEMO_RESULT = {
+  agent_opinions: DEMO_AGENT_OPINIONS,
+  discourse_log: DEMO_DISCOURSE_LOG,
+  decision: 'BLOCK',
+}
+
+function getConnectionMessage(status) {
+  if (status === 401) return 'The local API key is missing or mismatched. Keep the same strong SENTINEL_API_KEY in the Next.js and FastAPI server environments.'
+  if (status === 502) return 'The paper-data provider could not return a valid response. Check Alpaca paper credentials and market-data feed access.'
+  if (status === 503) return 'The local paper API is not configured yet. Add a strong server-only API key and Alpaca paper credentials; the fixed demo remains visible.'
+  if (status === 404) return 'The paper-data bridge is available only in local development. This production build remains in demo mode.'
+  return 'Could not load read-only paper data. The fixed synthetic demo remains visible.'
+}
 
 export default function Home() {
   const [focusMode, setFocusMode] = useState(false)
   const [commandWheelOpen, setCommandWheelOpen] = useState(false)
   const [commandStatus, setCommandStatus] = useState('')
-  const [marketData, setMarketData] = useState(null)
-  const [sentinelResult, setSentinelResult] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [paperSnapshot, setPaperSnapshot] = useState(null)
+  const [paperStatus, setPaperStatus] = useState('Checking the local read-only paper API…')
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const riskLevel = 'AMBER'
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Generate mock data only after mount; random values must not be created during render.
-      const mockMarketState = {
-        timestamp: new Date().toISOString(),
-        instrument: 'SPY',
-        price: 450.0 + Math.random() * 10 - 5,
-        regime:
-          Math.random() > 0.7
-            ? 'high_volatility'
-            : Math.random() > 0.5
-              ? 'trending'
-              : 'mean_reverting',
-        indicators: {
-          rsi: 50 + Math.random() * 40,
-          macd: {
-            line: Math.random() * 2 - 1,
-            signal: Math.random() * 2 - 1,
-            histogram: Math.random() * 0.5 - 0.25,
-          },
-          bollinger_bands: {
-            upper: 460 + Math.random() * 5,
-            middle: 450 + Math.random() * 5,
-            lower: 440 + Math.random() * 5,
-          },
-        },
-        order_book: {
-          bid_vol: 1000 + Math.floor(Math.random() * 500),
-          ask_vol: 1000 + Math.floor(Math.random() * 500),
-          spread: 0.1 + Math.random() * 0.8,
-        },
-        sentiment: { bullish: Math.random(), bearish: Math.random() },
-        fundamentals: { pe_ratio: 15 + Math.random() * 10, earnings_date: '2026-04-15' },
-      }
-
-      const mockAgentOpinions = [
-        {
-          agent_name: 'TECH',
-          opinion: 'RED',
-          confidence: 0.9,
-          rationale: 'RSI indicates overbought conditions.',
-          data_used: ['indicators.rsi', 'indicators.macd'],
-        },
-        {
-          agent_name: 'MACRO',
-          opinion: 'GREEN',
-          confidence: 0.8,
-          rationale: 'Fed policy remains accommodative.',
-          data_used: ['fundamentals.pe_ratio'],
-        },
-        {
-          agent_name: 'MICRO',
-          opinion: 'RED',
-          confidence: 0.85,
-          rationale: 'Low liquidity detected.',
-          data_used: ['order_book.spread'],
-        },
-        {
-          agent_name: 'SENT',
-          opinion: 'GREEN',
-          confidence: 0.75,
-          rationale: 'Bullish sentiment.',
-          data_used: ['sentiment.bullish'],
-        },
-        {
-          agent_name: 'FUND',
-          opinion: 'GREEN',
-          confidence: 0.9,
-          rationale: 'Fair valuation.',
-          data_used: ['fundamentals.pe_ratio'],
-        },
-      ]
-
-      const mockDiscourseLog = [
-        { type: 'OPINION', agent: 'TECH', opinion: 'RED', timestamp: new Date().toISOString() },
-        {
-          type: 'CHALLENGE',
-          agent: 'MACRO',
-          target: 'TECH',
-          message: 'Fed data contradicts RSI.',
-          timestamp: new Date().toISOString(),
-        },
-        {
-          type: 'AGREE',
-          agent: 'FUND',
-          target: 'TECH',
-          message: 'P/E supports bearish stance.',
-          timestamp: new Date().toISOString(),
-        },
-        {
-          type: 'DECISION',
-          verdict: 'BLOCK',
-          critic_notes: 'Consensus for RED.',
-          timestamp: new Date().toISOString(),
-        },
-      ]
-
-      setMarketData(mockMarketState)
-      setSentinelResult({
-        agent_opinions: mockAgentOpinions,
-        discourse_log: mockDiscourseLog,
-        decision: 'BLOCK',
+  const refreshPaperData = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      const response = await fetch('/api/sentinel/dashboard?symbol=SPY&days=30', {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(30_000),
       })
-      setLoading(false)
-    }, 1000)
-
-    return () => clearTimeout(timer)
+      if (!response.ok) {
+        setPaperSnapshot(null)
+        setPaperStatus(getConnectionMessage(response.status))
+        return
+      }
+      const snapshot = parsePaperDashboard(await response.json())
+      setPaperSnapshot(snapshot)
+      setPaperStatus('Paper account data loaded. This view is read-only; order execution is not available.')
+    } catch {
+      setPaperSnapshot(null)
+      setPaperStatus('The local paper-data service is unavailable or returned invalid data. The fixed synthetic demo remains visible.')
+    } finally {
+      setIsRefreshing(false)
+    }
   }, [])
 
-  if (loading) return <div className="p-8 text-center">Loading Sentinel Dashboard...</div>
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void refreshPaperData()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [refreshPaperData])
+
+  const connectedToPaper = paperSnapshot !== null
+  const marketData = connectedToPaper ? toMarketChartData(paperSnapshot) : DEMO_MARKET_STATE
+  const sentinelResult = DEMO_RESULT
 
   return (
     <>
       <Head>
-        <title>Sentinel Dashboard Demo</title>
-        <meta name="description" content="Simulated Sentinel dashboard demo; not live market data or real analysis." />
+        <title>Sentinel Dashboard</title>
+        <meta name="description" content="Sentinel local paper-data dashboard and clearly labeled synthetic demo." />
       </Head>
 
-      <div className="dashboard-container min-h-screen bg-gray-50 p-4 dark:bg-gray-900">
-        <div className="mb-4 flex justify-end">
-          <Link href="/strategy-validation" className="rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">
-            Strategy Validation Prototype
-          </Link>
+      <main className="dashboard-container min-h-screen bg-gray-50 p-4 dark:bg-gray-900">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold">Sentinel Console</h1>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/strategy-validation" className="rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">
+              Strategy Validation Prototype
+            </Link>
+            <button
+              type="button"
+              onClick={() => void refreshPaperData()}
+              disabled={isRefreshing}
+              className="rounded-md bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-wait disabled:opacity-60"
+            >
+              {isRefreshing ? 'Refreshing…' : 'Refresh paper data'}
+            </button>
+            {connectedToPaper && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPaperSnapshot(null)
+                  setPaperStatus('Disconnected locally. The fixed synthetic demo is displayed.')
+                }}
+                className="rounded-md border border-gray-500 px-4 py-2 text-sm font-semibold"
+              >
+                Show demo
+              </button>
+            )}
+          </div>
         </div>
-        <DemoModeBanner />
+
+        <div role="status" aria-live="polite" className="mb-4 rounded-md border border-gray-300 bg-white p-3 text-sm dark:border-gray-700 dark:bg-gray-800">
+          {paperStatus}
+        </div>
+
+        {connectedToPaper ? (
+          <aside role="note" className="mb-4 rounded-lg border border-blue-400 bg-blue-50 p-4 text-blue-950 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-100">
+            <h2 className="font-bold uppercase tracking-wide">Alpaca paper account · read-only</h2>
+            <p className="mt-1 text-sm">
+              The account and positions are read from Alpaca&apos;s paper environment. Historical bars use the configured market-data feed. Sentinel exposes no order, cancel, or liquidation operation. The agent opinions, discourse, risk glow, and illustrative BLOCK verdict below remain fixed synthetic examples and are not computed from this account or feed.
+            </p>
+          </aside>
+        ) : (
+          <DemoModeBanner />
+        )}
+
+        {!connectedToPaper && <RiskGlow riskLevel={riskLevel} />}
         {commandStatus && (
           <div role="status" aria-live="polite" className="mb-4 flex items-start justify-between gap-4 rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-950 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-100">
             <p>{commandStatus}</p>
             <button type="button" className="shrink-0 font-semibold underline" onClick={() => setCommandStatus('')}>Dismiss</button>
           </div>
         )}
-        <RiskGlow riskLevel={riskLevel} />
 
         <div className="main-content mb-16 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="price-chart-section lg:col-span-3"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="price-chart-section lg:col-span-3">
             <PriceChart data={marketData} />
           </motion.div>
 
-          <motion.div
-            initial={{ x: -50, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            className="agent-roster-section lg:col-span-3"
-          >
-            <AgentRoster agents={sentinelResult.agent_opinions} />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-3">
+            <ResearchCandidatePanel />
           </motion.div>
 
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            id="agent-discourse"
-            className="discourse-section scroll-mt-4 lg:col-span-3"
-          >
+          {connectedToPaper && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-3">
+              <PaperAccountPanel snapshot={paperSnapshot} />
+            </motion.div>
+          )}
+
+          <motion.div initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="agent-roster-section lg:col-span-3">
+            <AgentRoster agents={sentinelResult.agent_opinions} />
+            {connectedToPaper && <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">These opinions are simulated demo content and are not based on the paper account or market data.</p>}
+          </motion.div>
+
+          <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} id="agent-discourse" className="discourse-section scroll-mt-4 lg:col-span-3">
             <DiscourseTimeline log={sentinelResult.discourse_log} />
           </motion.div>
         </div>
 
-        <div className="event-rail fixed bottom-0 left-0 right-0">
-          <EventRail events={sentinelResult.discourse_log} />
-        </div>
+        {!connectedToPaper && <div className="event-rail fixed bottom-0 left-0 right-0"><EventRail events={sentinelResult.discourse_log} /></div>}
 
-        {focusMode && (
+        {focusMode && !connectedToPaper && (
           <FocusMode
             data={{ marketState: marketData, agents: sentinelResult.agent_opinions }}
             onClose={() => setFocusMode(false)}
@@ -200,22 +177,16 @@ export default function Home() {
           />
         )}
 
-        <button
-          type="button"
-          onClick={() => setFocusMode(!focusMode)}
-          className="focus-toggle fixed bottom-4 right-20 rounded-full bg-gray-800 px-4 py-2 text-white shadow-lg transition hover:bg-gray-700"
-        >
-          {focusMode ? 'Exit Focus' : 'Focus Mode'}
-        </button>
+        {!connectedToPaper && (
+          <button type="button" onClick={() => setFocusMode(!focusMode)} className="focus-toggle fixed bottom-4 right-20 rounded-full bg-gray-800 px-4 py-2 text-white shadow-lg transition hover:bg-gray-700">
+            {focusMode ? 'Exit Focus' : 'Focus Mode'}
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={() => setCommandWheelOpen(true)}
-          className="command-wheel-toggle fixed bottom-4 right-4 rounded-full bg-gray-800 px-4 py-2 text-white shadow-lg transition hover:bg-gray-700"
-        >
+        <button type="button" onClick={() => setCommandWheelOpen(true)} className="command-wheel-toggle fixed bottom-4 right-4 rounded-full bg-gray-800 px-4 py-2 text-white shadow-lg transition hover:bg-gray-700">
           Commands
         </button>
-      </div>
+      </main>
     </>
   )
 }

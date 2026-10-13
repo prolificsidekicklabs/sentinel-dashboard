@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, docs/sentinel-documentation-baseline, feat/python-plugin-runtime-foundation, feat/rsi-macd-candidate-plugin]
 
 permissions:
   contents: read
@@ -39,6 +39,9 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Build
         run: npm run build
