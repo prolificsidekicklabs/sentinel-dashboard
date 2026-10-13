@@ -1,6 +1,6 @@
 # Sentinel Python Service Foundation
 
-This folder contains the Python service alongside the Next.js dashboard. It is an early **contract and local-runtime foundation**, not a production trading backend. The local Next.js development server is wired to the authenticated, read-only paper dashboard route. After implementation, a user-authorized Alpaca paper account read succeeded through the local API and proxy; temporary local credential and response files were removed afterward.
+This backend now includes an **OIDC-verifying API, encrypted per-user provider credentials, hash-chained audit records, a fail-closed OCI plugin runner, reproducible walk-forward research, an account-aware paper risk gate, and an optional paper-only order adapter**. It is a tested research and backend foundation, not a production-ready brokerage platform, profitability claim, or live-trading system. Identity-provider login UX, deployment hardening, a managed multi-node database/KMS, and a tested production sandbox runtime still require operator configuration and validation.
 
 ## Run locally
 
@@ -14,44 +14,42 @@ python -m pip install -e . --no-deps
 uvicorn sentinel_core.api:app --app-dir src --host 127.0.0.1 --port 8000 --reload
 ```
 
-The API listens at `http://127.0.0.1:8000`. Only `GET /healthz` is public. Plugin routes and `GET /api/v1/paper/dashboard` require a server-to-server bearer token in `SENTINEL_API_KEY`; the token must be at least 32 characters. OpenAPI docs are available at `/docs` during development. Do not bind this service to a public interface.
+Only `GET /healthz` is public. Protected routes require a bearer token. Configure OIDC issuer, audience, and HTTPS JWKS URL together for verified OIDC access tokens; user scopes are enforced server-side. The shared `SENTINEL_API_KEY` compatibility path is development-only and is disabled when `SENTINEL_ENV=production`. **This repository does not include an interactive sign-in flow or connect the Next.js dashboard to an identity provider.** The existing Next.js-to-local-API proxy remains development-only and is disabled in production.
 
-The paper dashboard route fetches bounded historical bars and paper-account/position data, then returns normalized decimal strings, source and timestamps, `paper: true`, and `execution_enabled: false`. It does not return the provider account ID. Its broker URL is forcibly set to `https://paper-api.alpaca.markets` even if a live URL or live-read opt-in is present in the environment. The service exposes no order, cancel, or liquidation route.
+Never bind the development server to a public interface. For local dashboard setup, see [the development guide](../docs/DEVELOPMENT.md).
 
-For a local dashboard connection, set the same strong `SENTINEL_API_KEY` in this service and the Next.js server's root `.env.local`. Put Alpaca paper credentials only in the backend process environment. See [the development guide](../docs/DEVELOPMENT.md) for the exact two-terminal setup. If configuration is absent, the dashboard safely stays in its fixed synthetic demo mode.
+## Identity and protected credentials
 
-## Model gateway adapter
+- OIDC JWT signatures, issuer, audience, expiry, and required claims are verified against a bounded HTTPS JWKS cache. The cache does not follow redirects; scopes come from verified `scope`/`scp` claims.
+- User-owned Alpaca credentials are accepted only on OIDC-protected routes with explicit `credentials:write` scope. They are encrypted using AES-GCM with owner/provider-bound associated data and a 32-byte `SENTINEL_VAULT_MASTER_KEY` supplied outside the database. Secret values are never returned by credential-status endpoints.
+- Credential retrieval is recorded in the audit log. A read-only Alpaca key cannot submit trades; the paper-order adapter requires a provider key with paper-trading permissions.
+- SQLite is a **single-node durability foundation** with restrictive file permissions, WAL, full synchronization, and transactions. Use a managed database and KMS, backups, key rotation, and tested restore procedures before multi-instance production. The local hash chain and SQLite triggers are tamper-evident controls, not an external immutable audit service.
 
-`sentinel_core.adapters.model_router.OpenAICompatibleChatAdapter` implements the common OpenAI-compatible `/v1/chat/completions` interface. It is configured server-side and can be used with OmniRoute, 9Router, or another compatible gateway. The gateway's exact model identifier is configuration; do not assume all routers support the same aliases or routing modes. Each request enforces its configured timeout even when the application injects an HTTP client; streamed responses are capped at 2 MB, and normalized model text is capped at 128 KB.
+## Market data and research
 
-Configuration names are in `.env.example`. Copy values into the **backend process environment or a deployment secret manager**; the service does not load `.env` files automatically. Never commit populated credentials, put them in browser code, return them through an API, or log request headers. For a local gateway, the default endpoint pattern is `http://127.0.0.1:20128/v1`; plain HTTP is restricted to loopback unless an explicit trusted-network override is set. Model output is untrusted and cannot approve risk or orders.
+`AlpacaMarketDataAdapter` fetches bounded, paginated historical U.S.-equity bars and normalizes prices to `Decimal`, preserving the feed, timestamps, and provider provenance. The configured market-data subscription controls coverage, delay, history, and rate limits. `AlpacaReadOnlyBrokerAdapter` reads the paper account and positions; the dashboard API forces the official `https://paper-api.alpaca.markets` host and returns no account identifier.
 
-## Alpaca read-only adapters
+`POST /api/v1/research/backtests/walk-forward` runs a fixed-parameter, chronological out-of-sample evaluation with next-bar-open estimated fills, explicit commissions/spread/slippage, buy-and-hold comparison, and cost-stress scenarios. Inputs and results are persisted by owner and dataset digest. This is not a statistically validated strategy-selection pipeline: corporate actions, dividends, taxes, market impact, lot rules, and significance/multiple-testing corrections are not modeled. A backtest is not evidence of future profitability.
 
-`AlpacaMarketDataAdapter` fetches bounded, paginated historical U.S.-equity bars and normalizes values to `Decimal`, with timestamps, feed and provider provenance preserved. The default feed is `iex`; the account's Alpaca market-data subscription controls coverage, delay, history and rate limits.
+The separate `rsi-macd-candidate` route remains a research-only directional label behind a review gate. It does not contain an order side, quantity, or execution authorization.
 
-`AlpacaReadOnlyBrokerAdapter` reads account summary and open positions from the **paper** Trading API by default. It has no order, cancel, or liquidation method. The dashboard API forces paper mode regardless of live-read environment flags. The adapter uses Alpaca Trading API key headers from `SENTINEL_ALPACA_KEY_ID` and `SENTINEL_ALPACA_SECRET_KEY`. These credentials are not stored in the browser, database, or source tree.
+## Plugin trust boundary
 
-`GET /api/v1/research/strategies/rsi-macd-candidate?symbol=SPY` fetches up to 365 calendar days of daily bars through the read-only market adapter, runs a pure deterministic strategy plugin, validates its typed output, and applies `CandidateRiskGate`. This route returns only a research candidate and market-quality metadata; it does not fetch account or position data. Generic plugin execution refuses strategy-category plugins, so this candidate cannot bypass the review gate through the generic API. The response can be blocked, contain no candidate, or require human review; it always has `execution_enabled: false`.
+Trusted, repository-reviewed local plugins can use the existing bounded subprocess runner. A manifest explicitly marked untrusted is routed only to the OCI runner, which **fails closed** unless an operator configures a digest-pinned worker image and rootless Docker with gVisor (`runsc`). The container uses no network, a read-only plugin mount/root filesystem, dropped capabilities, non-root UID, resource limits, a bounded protocol, and a hard timeout.
 
-## Contracts and deterministic boundaries
+The sandbox worker image recipe is in `sandbox/Dockerfile`. The current environment has not built or run the OCI image; no claim of adversarial security testing is made. Do not enable marketplace plugins until the image is built from reviewed, pinned dependencies and the exact deployment runtime passes isolation and escape testing.
 
-- `adapters.ports` defines provider-neutral market-data and broker-read interfaces, Decimal-based finance records, and an order proposal that is separate from authorization.
-- `RiskEvaluator` is an independent policy port. A model response is never a risk evaluation.
-- The future execution contract accepts only a `RiskApprovedOrder` carrying an explicit versioned risk evaluation and idempotency key. There is currently **no concrete broker execution adapter**.
-- The moving-average example is illustrative only. The RSI/MACD/EMA candidate is a research-only directional label, not a recommendation or evidence of a strategy edge. Its separate review gate checks input quality/freshness and only allows human review; it does not assess account exposure or position sizing. See [the candidate-strategy contract and Alpaca SDK review](docs/CANDIDATE_STRATEGY.md).
+## Paper risk and execution boundary
 
-## Plugin contract and execution boundary
+Paper order submission is **disabled by default** (`SENTINEL_PAPER_EXECUTION_ENABLED=false`). The optional route requires a verified OIDC principal with `paper:trade`, an explicit `confirm_paper_order: true` field, an idempotency key, and user-owned paper credentials. The server always fixes the broker host to Alpaca's paper endpoint; no live-order adapter or live URL is supported.
 
-A local plugin directory contains `sentinel_manifest.yaml`, `SKILL.md`, `plugin.py`, and `tests/`. Manifests use safe YAML parsing, reject duplicate keys, and are checked against a versioned Pydantic schema. The current generic async contract is `async def run(context: PluginContext) -> PluginResult`; plugin types include `strategy`, whose API path must apply the separate candidate review gate.
+Before a paper submission, the service checks provider provenance and freshness, account age and `ACTIVE` status, a fixed instrument allowlist, positive buying power/equity, a per-order notional ceiling, long-only sell limits, and single-symbol/gross exposure limits. Risk approvals expire quickly. SQLite reserves at most one non-terminal order per user, including concurrent submissions; unknown/pending orders must be reconciled before another is accepted. Order intent, risk reasons/policy version, market/account provenance, and state changes are audited.
 
-The run context contains a caller-supplied seed, a per-run `random.Random` seeded from it, and JSON input. It intentionally exposes no provider or broker clients. The sample plugin is deterministic and does not use randomness. Each run hashes canonicalized input, manifest identity, seed, and output so repeated executions can be compared.
+The controls explicitly do **not** assess an intraday loss limit, predict fills or slippage, or establish live-trading suitability. Provider execution outcomes can remain unresolved and safely block subsequent orders. There is no order-cancel or liquidation endpoint and the UI does not expose the execution route. This code is for paper testing only.
 
-Plugin code runs in a fresh Python subprocess with a scrubbed environment, temporary working directory, wall-clock timeout, and best-effort POSIX CPU, address-space, file-size, and file-descriptor limits. This provides process separation and fault/resource containment for **trusted, repository-reviewed local plugins** only. It is not a security sandbox for untrusted marketplace plugins; network access, filesystem isolation, privilege dropping, seccomp/container policy, and marketplace threat testing are not implemented.
+## Environment configuration
 
-## Known production gaps
-
-The current service does not yet provide user identity/session authentication, role-based authorization, tenant isolation, encrypted persistent secret storage, audited connection management, rate limiting, durable jobs, a database, live data streams, a secure untrusted-plugin sandbox, CI publishing, marketplace/payout flows, or broker order execution. Automated API/provider tests use mocks; a separate user-authorized read-only paper-data check succeeded through FastAPI and the Next.js proxy. No live-account credentials or order operations were used, and no balances or holdings were displayed. The Next.js proxy is intentionally restricted to local development and disabled in production.
+Names and safe defaults are in [`.env.example`](.env.example). The service does not load `.env` files automatically. Supply values through the process environment or a deployment secret manager. Never commit credentials, place them in browser code, return them from an API, or log request headers. OIDC issuer/audience/JWKS, vault key, database, and sandbox image/runtime must be configured and operationally validated before their dependent features can run.
 
 ## Verify
 
@@ -59,7 +57,7 @@ The current service does not yet provide user identity/session authentication, r
 ruff format --check src plugins tests
 ruff check src plugins tests
 mypy src plugins/rsi-macd-candidate/plugin.py
-pytest
+pytest -q
 ```
 
-The backend has a separate GitHub Actions workflow; it does not replace or alter the existing Next.js checks.
+The backend has a separate GitHub Actions workflow. Run the root Next.js lint, type-check, tests, dependency audit, and build as well; backend CI does not replace those checks.

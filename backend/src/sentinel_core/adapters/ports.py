@@ -135,9 +135,12 @@ class AccountSnapshot:
     cash: Decimal
     buying_power: Decimal
     observed_at: datetime
+    account_status: str = "unknown"
 
     def __post_init__(self) -> None:
         _require_aware(self.observed_at, "observed_at")
+        if not self.account_status.strip():
+            raise ValueError("account status is required")
         for name in ("equity", "cash", "buying_power"):
             _require_decimal(getattr(self, name), name)
 
@@ -197,6 +200,7 @@ class RiskEvaluation:
     evaluated_at: datetime
     expires_at: datetime
     reasons: tuple[str, ...]
+    unassessed_risks: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _require_aware(self.evaluated_at, "evaluated_at")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -49,6 +49,7 @@ class PluginManifest(BaseModel):
     version: str = Field(min_length=5, max_length=80)
     plugin_type: PluginType
     entrypoint: str = Field(min_length=3, max_length=100)
+    trust_level: Literal["repository-reviewed", "untrusted"] = "repository-reviewed"
     permissions: tuple[PluginPermission, ...] = ()
     deterministic: bool
     description: str = Field(min_length=1, max_length=500)

@@ -138,6 +138,7 @@ def test_paper_account_and_positions_are_read_only() -> None:
                     "equity": "1000.25",
                     "cash": "800.25",
                     "buying_power": "1600.50",
+                    "status": "ACTIVE",
                 },
             )
         if request.url.path == "/v2/positions":
@@ -164,6 +165,7 @@ def test_paper_account_and_positions_are_read_only() -> None:
 
     assert adapter.base_url == "https://paper-api.alpaca.markets"
     assert account.equity == Decimal("1000.25")
+    assert account.account_status == "ACTIVE"
     assert positions[0].market_value == Decimal("200.00")
     assert [request.url.path for request in requests] == ["/v2/account", "/v2/positions"]
     assert all(request.method == "GET" for request in requests)

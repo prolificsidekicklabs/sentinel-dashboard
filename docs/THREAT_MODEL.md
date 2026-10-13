@@ -19,15 +19,18 @@ This is an initial threat model covering the implemented local API/data path and
 
 ## 3. Trust Boundaries
 
-Proposed boundaries include:
+Implemented or proposed boundaries include:
 
 - Browser to application server.
 - Application server to market-data provider.
 - Application server to analytical services.
 - Analytical services to governance and risk evaluation.
 - Application server to persistence.
+- Browser/client to configured OIDC issuer and backend bearer-token validation.
+- Backend process to the vault-encryption key and SQLite database.
+- Backend plugin host to the isolated OCI runtime and read-only plugin mount.
 - Sentinel to AEGIS Core.
-- Sentinel to any future broker adapter.
+- Sentinel paper-order adapter to the official paper broker API.
 - Next.js server proxy to the local FastAPI service, then to Alpaca market-data and paper-trading APIs.
 - CI/CD system to production deployment.
 
@@ -95,16 +98,14 @@ The browser must be treated as an untrusted environment. Client-side state is no
 
 **Controls:**
 
-- Do not expose live execution in the UI prototype.
-- The implemented API has no order, cancel, or liquidation route; its paper dashboard handler forcibly selects Alpaca's official paper host even if environment variables request live reads.
-- The browser-facing proxy accepts only same-origin GETs for the fixed paper-dashboard and research-candidate resources, targets loopback HTTP, holds the bearer key server-side, disables caching, and returns 404 in production. The candidate panel is user-triggered and validates the response, but client validation is not authorization. This is a local development boundary, not user identity or production access control.
-- Strategy-category plugins are refused by the generic run endpoint; the dedicated research route validates typed output and invokes the independent review gate. Both signal and gate response fix `execution_enabled` to false; no broker client is used.
-- Require server-side authentication and authorization.
-- Use narrowly scoped execution credentials.
-- Apply account, instrument, quantity, and exposure limits.
-- Require independent risk evaluation.
-- Use idempotency keys and order reconciliation.
-- Provide a kill switch and a documented emergency process.
+- No live-execution route or UI exists. The optional order API is paper-only, disabled by default, and always targets the official Alpaca paper host.
+- Backend routes verify OIDC token signature, issuer, audience, expiry, and scopes. The legacy shared bearer-key path is development-only and does not authorize credential management or paper trading. The Next.js proxy remains local-development-only and is not connected to an interactive login flow.
+- Paper orders require `paper:trade`, explicit `confirm_paper_order: true`, user-owned encrypted credentials, a valid idempotency key, fresh market/account snapshots, an active account, an instrument allowlist, bounded notional/exposure, and a short-lived server-generated risk approval.
+- A SQLite partial unique index and API check allow at most one non-terminal paper order per user, including concurrent submissions. Unknown/active orders require reconciliation before another order is accepted; no cancel or liquidation endpoint is implemented.
+- Paper order intent, provider status, risk policy/version/reasons, and market/account provenance are written to a hash-chained audit log. These checks are server-side; browser state and synthetic risk visuals do not authorize execution.
+- Strategy-category plugins remain blocked from the generic runner and the research candidate route remains execution-disabled.
+
+**Remaining risk:** The order path is disabled and was not used to submit a paper trade. A provider key with paper-trading permissions, operator enablement, end-to-end failure/reconciliation testing, monitoring, and operational kill-switch procedures are not established. Intraday-loss limits and actual fill/slippage quality are explicitly unassessed; live execution is not supported.
 
 ### 4.6 Compromised credentials
 
@@ -112,11 +113,12 @@ The browser must be treated as an untrusted environment. Client-side state is no
 
 **Controls:**
 
-- Store secrets in a managed secret store.
+- Store each user's provider secret encrypted with AES-GCM and owner/provider-bound associated data; keep the 32-byte master key outside SQLite in the process environment or secret manager.
 - Never commit credentials.
 - Never ship privileged secrets to the browser.
-- The FastAPI bearer-token dependency requires a configured key of at least 32 characters and uses a constant-time comparison; the local proxy does not return or log the token.
-- Restrict and rotate credentials.
+- OIDC signatures, issuer, audience, and expiry are verified before deriving the user owner ID. Credential routes additionally require `credentials:read` or `credentials:write`; values are masked on input and never returned by status routes.
+- Credential retrieval is audit logged. The legacy development key uses constant-time comparison, is disabled in production, and cannot authorize credential management.
+- Restrict and rotate provider credentials; explicit master-key rotation/re-encryption and managed KMS integration remain deployment work.
 - Scan repositories and build artifacts.
 - Revoke compromised credentials immediately.
 
@@ -140,12 +142,9 @@ The browser must be treated as an untrusted environment. Client-side state is no
 
 **Controls:**
 
-- Store audit events in controlled persistence.
-- Restrict mutation and deletion privileges.
-- Record actor identity and timestamps.
-- Use append-only or tamper-evident storage where justified.
-- Monitor privileged changes.
-- Retain records according to an approved policy.
+- The local SQLite store uses append-only update/delete triggers, WAL/full synchronization, restrictive file permissions, and a hash chain that the API verifies before exposing audit events or accepting paper orders.
+- Persist credential updates/reads/deletes, experiment records, risk decisions, paper-order submissions, and provider status changes with owner identity and timestamps.
+- These are local tamper-evident controls, not immutable storage: an operator with database-file access can replace the file, drop triggers, or recompute hashes. External replication, retention policy, privileged-access monitoring, backup/restore, and managed production storage remain open.
 
 ### 4.9 Denial of service or resource exhaustion
 
@@ -173,6 +172,18 @@ The browser must be treated as an untrusted environment. Client-side state is no
 - Keep the plugin deterministic and local, with no network, provider credential, account, or broker context. The local subprocess is for trusted repository-reviewed code, not hostile marketplace plugins.
 
 **Remaining risk:** The technical rule is not validated, backtested, or demonstrated to have predictive value. The review gate checks data/contract conditions only and must never be reused as an order-risk evaluator.
+
+### 4.11 Malicious third-party plugin escape
+
+**Threat:** Untrusted plugin code attempts network access, reads host files or credentials, exhausts resources, or escapes its worker process.
+
+**Controls:**
+
+- Untrusted manifests are routed only to a digest-pinned OCI image under rootless Docker/gVisor (`runsc`); missing runtime or image configuration fails closed.
+- The container has no network, a read-only root filesystem and plugin mount, a non-root UID, no added capabilities, `no-new-privileges`, CPU/memory/PID limits, bounded input/output, and a hard timeout with container cleanup.
+- Trusted repository-reviewed plugins continue to use the local subprocess runner; that path is not represented as a hostile-code sandbox.
+
+**Remaining risk:** The OCI image has not been built or run in this environment, and container escape/adversarial testing has not been performed. Do not enable marketplace plugin execution until the exact deployment runtime and image have been independently reviewed and tested.
 
 ## 5. Security Principles
 
