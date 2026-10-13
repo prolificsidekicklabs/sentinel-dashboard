@@ -1,6 +1,30 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-green-500: rgb(var(--color-green));
+  --color-amber-500: rgb(var(--color-amber));
+  --color-red-500: rgb(var(--color-red));
+  --color-blue-500: rgb(var(--color-blue));
+  --color-purple-500: rgb(var(--color-purple));
+}
+
+@theme {
+  --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-spin-slow: spin 20s linear infinite;
+}
+
+/* Preserve the Tailwind v3 gray-200 default border color. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 :root {
   --color-green: 74 222 128;
