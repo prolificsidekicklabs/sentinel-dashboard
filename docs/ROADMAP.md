@@ -18,9 +18,10 @@ The reviewed repository contains:
 - Risk visualization.
 - Focus Mode and a command-wheel interface.
 - A browser-only, research-grade SMA validation prototype that accepts user-supplied daily bars and exports run records.
-- A Python FastAPI service with protected plugin routes, a trusted-local deterministic plugin runner, and normalized paper-account/position and market-bar contracts.
+- A Python FastAPI service with protected plugin routes, a trusted-local deterministic plugin runner, normalized read-only paper-data contracts, and a typed RSI/MACD/EMA candidate plugin behind an independent review-only gate; the dashboard displays candidate results only after a manual local-development request.
+- A curated, unreviewed open-source quant research directory and proposed AEGIS/Sentinel target flow in [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md); no listed project has been cloned, audited, or adopted.
 
-The provider adapters and API data path are tested with mocked responses; no Alpaca account was connected. User-level authentication, fresh-data policy, persistent analytical history, broker execution, or tested AEGIS Core integration are not established. The validation prototype does not establish a strategy edge or complete independent strategy validation.
+Mocked tests cover provider adapters and API routes; a separate user-authorized read-only paper connection was verified through the local API and proxy. The candidate gate checks market-data quality, freshness, and contract consistency but is not an account-aware risk model and cannot authorize trading. Live-account access, production data reliability, persistent analytical history, broker execution, and tested AEGIS Core integration are not established. Neither research prototype establishes a strategy edge or completes independent strategy validation.
 
 ## 3. Phase 0 — Stabilize the Prototype
 
@@ -91,7 +92,7 @@ Work items:
 
 **Objective:** Replace predefined agent opinions with reproducible analytical outputs.
 
-**Prototype status:** An initial client-side SMA crossover validator is implemented with basic CSV checks, next-open costed fills, a fixed chronological holdout, buy-and-hold comparison, risk summaries, and downloadable experiment records. This is a software prototype only; it does not complete this phase's evidence, provenance, robustness, or acceptance criteria.
+**Prototype status:** An initial client-side SMA crossover validator is implemented with basic CSV checks, next-open costed fills, a fixed chronological holdout, buy-and-hold comparison, risk summaries, and downloadable experiment records. A separate deterministic RSI/MACD/EMA candidate plugin now returns a typed directional label from normalized daily bars, passes it through a data-quality/freshness gate for human review, and appears in a manually triggered local-development dashboard panel. Both are software research prototypes only; neither completes this phase's evidence, provenance, robustness, predictive validation, or acceptance criteria.
 
 Work items:
 
@@ -102,6 +103,7 @@ Work items:
 - Add contradiction and missing-evidence handling.
 - Measure latency, cost, reliability, and analytical quality.
 - Persist analysis history.
+- Complete and maintain the repository due-diligence matrix before adopting upstream code or dependencies; see [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md). No candidate is approved by inclusion in the directory.
 
 **Exit criteria:**
 

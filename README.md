@@ -30,6 +30,7 @@ The reviewed source includes:
 | `components/DemoModeBanner.jsx` | Persistent warning that generated market and decision content is simulated |
 | `components/PriceChart.jsx` | D3-based chart of supplied OHLCV bars; no generated price series |
 | `components/PaperAccountPanel.jsx` | Read-only paper-account and open-position summary |
+| `components/ResearchCandidatePanel.jsx` | Manually triggered, local-only market-data candidate and review display; no order controls |
 | `components/AgentRoster.jsx` | Analytical-agent opinion cards |
 | `components/DiscourseTimeline.jsx` | Timeline of opinions, challenges, agreements, and decisions |
 | `components/FocusMode.jsx` | Detail panel for the first predefined analytical perspective |
@@ -38,14 +39,15 @@ The reviewed source includes:
 | `components/RiskGlow.jsx` | Visual risk-level indicator |
 | `components/StrategyValidationPanel.jsx` | Client-side CSV import, experiment form, metrics, and record export |
 | `lib/strategy-validation.js` | Deterministic daily-bar SMA crossover backtest and data validation |
+| `lib/research-candidate.js` | Strict browser response validation and same-origin candidate GET helper |
 
 The interface uses Next.js, React, Tailwind CSS, D3, and Framer Motion.
 
-The dashboard uses fixed synthetic fixtures by default. In local development it attempts a same-origin Next.js server proxy to the FastAPI service; after a successful request, the price chart and account panel show normalized Alpaca historical bars and paper-account/position data. The server proxy is loopback-only, requires a long server-held bearer key, disables caching and is disabled in production. The browser never receives Alpaca credentials or the internal API key. The backend forcibly uses the Alpaca paper trading host and has no order, cancel or liquidation route.
+The dashboard uses fixed synthetic fixtures by default. In local development, its paper view uses the loopback-only same-origin Next.js proxy to retrieve normalized Alpaca historical bars and paper-account/position data. A separate RSI/MACD candidate panel starts idle and fetches daily market data only after the user submits a ticker. The proxy allowlists only these two GET operations, holds the bearer key server-side, disables caching, and is disabled in production; the browser never receives provider credentials or the internal API key. The candidate read returns no account or position data. No route submits, cancels, or liquidates orders.
 
 The repository also includes a **research-only Strategy Validation Engine prototype** at `/strategy-validation`. It runs a fixed long-only, equity-style SMA crossover against user-supplied daily OHLCV CSV, models next-open fills and configurable transaction costs, compares a chronological holdout against buy-and-hold, and exports a reproducible JSON experiment record. It is not connected to a market-data provider or any trading/execution service. See the [prototype methodology and limitations](docs/STRATEGY_VALIDATION_ENGINE.md).
 
-The Python service also provides API-key-protected local plugin discovery and execution, with a deterministic example plugin and bounded subprocess runner. Its current runner is for trusted, repository-reviewed plugins, not untrusted marketplace code. See [backend setup and boundaries](backend/README.md) and the [implemented API subset](docs/API_CONTRACT.md).
+The Python service also provides API-key-protected local plugin discovery and bounded execution. It includes a deterministic RSI/MACD/EMA research candidate plugin behind a typed, independent review gate; the dashboard shows its result only after an explicit local-development request. Strategy plugins cannot use the generic run endpoint, and the gate never authorizes execution. The candidate endpoint reads historical market bars only and returns no account or position data. Its label is not a recommendation or evidence of a trading edge. The runner is for trusted, repository-reviewed plugins, not untrusted marketplace code. See [backend setup and boundaries](backend/README.md), the [candidate strategy contract and Alpaca SDK review](backend/docs/CANDIDATE_STRATEGY.md), and the [implemented API subset](docs/API_CONTRACT.md).
 
 ## 3. What Is Not Yet Verified
 
@@ -116,7 +118,7 @@ npm test
 npm run build
 ```
 
-**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-11), clean `npm ci`, lint, JS/JSX type-checking, all 23 frontend tests, the production build, and the production dependency audit passed. Backend format, lint, strict typing, and all 39 backend tests also passed from the pinned Python lockfile. A separate user-authorized read-only paper-account check succeeded through both FastAPI and the same-origin Next.js proxy; it confirmed paper mode and disabled execution without displaying balances or holdings. Temporary local credentials/response files were removed. GitHub Actions runs on pull requests to `main` and the documentation-baseline branch and pushes to `main`; see `.github/workflows/ci.yml`, `.github/workflows/backend-ci.yml`, and the PR status checks. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the full security-audit status.
+**Verification status:** On Node.js `24.19.0` and npm `11.17.0` (2026-10-12), lint, JS/JSX type-checking, all 31 frontend tests, the production build, and the production dependency audit passed. Backend formatting, lint, strict typing of core and the strategy plugin, and all 58 backend tests passed from the pinned Python lockfile. A separate user-authorized read-only paper-account check succeeded through FastAPI and the same-origin Next.js proxy; the candidate route also returned 250 valid SPY daily bars and a human-review-required result without account/position data or execution capability. Temporary local credentials, response files, server, and token were removed. GitHub Actions runs on pull requests to `main`, the documentation-baseline branch, and the PR #2 and PR #3 feature branches, and pushes to `main`; see `.github/workflows/ci.yml`, `.github/workflows/backend-ci.yml`, and the PR status checks. The build still warns that React 18 is deprecated in Next.js 16 and will be removed in Next.js 17. See the [Development Guide](docs/DEVELOPMENT.md) for the full security-audit status.
 
 ## 7. Architecture and Development Documentation
 
@@ -126,6 +128,7 @@ npm run build
 - [Deployment Guide](docs/DEPLOYMENT.md)
 - [Threat Model](docs/THREAT_MODEL.md)
 - [Product Roadmap](docs/ROADMAP.md)
+- [Quantitative Research Ecosystem and Repository Review](docs/QUANT_RESEARCH_ECOSYSTEM.md)
 - [Strategy Validation Engine Prototype](docs/STRATEGY_VALIDATION_ENGINE.md)
 - [Contributing Guide](docs/CONTRIBUTING.md)
 
@@ -141,8 +144,8 @@ The strategy-validation prototype's historical metrics are research-only and do 
 
 ## 9. Documentation and Security Status
 
-The code includes a research-only local-file validation prototype, a Python plugin/runtime foundation, an authenticated local API, and paper-only read adapters with an explicit no-execution response contract. Automated provider tests use mocked responses; in addition, a user-authorized, read-only paper-account check successfully retrieved paper-mode market bars, account, and positions through both the FastAPI route and local Next.js proxy. The response affirmed paper mode and disabled execution. No balances or holdings were displayed, and temporary local credential/response files were deleted after verification; no live account or order operation was used. The paper-data proxy is disabled in production, and no user-login/session system, durable secret store, tenant isolation, audit service, or secure untrusted-plugin sandbox is implemented. Review the [development guide](docs/DEVELOPMENT.md), [threat model](docs/THREAT_MODEL.md), [deployment guide](docs/DEPLOYMENT.md), and [backend limits](backend/README.md) before use.
+The code includes a browser-only strategy-validation prototype, a deterministic RSI/MACD/EMA candidate plugin behind an independent review-only gate, a Python plugin/runtime foundation, an authenticated local API, and paper-only read adapters with an explicit no-execution response contract. Automated provider tests use mocked responses; in addition, a user-authorized, read-only paper-account check successfully retrieved paper-mode market bars, account, and positions through both the FastAPI route and local Next.js proxy. The response affirmed paper mode and disabled execution. No balances or holdings were displayed, and temporary local credential/response files were deleted after verification; no live account or order operation was used. The candidate rule is not backtested or proven to have predictive value, the review gate is not account-aware risk authorization, and no order operation exists. The paper-data proxy is disabled in production, and no user-login/session system, durable secret store, tenant isolation, audit service, or secure untrusted-plugin sandbox is implemented. Review the [development guide](docs/DEVELOPMENT.md), [threat model](docs/THREAT_MODEL.md), [deployment guide](docs/DEPLOYMENT.md), and [backend limits](backend/README.md) before use.
 
 The production dependency audit (`npm audit --omit=dev`) reports no known vulnerabilities. The full development audit reports **5 high-severity findings** through the transitive `braces@3.0.3` dependency used by the Next.js ESLint plugin; no patched npm release was available when checked and the upstream advisory is disputed ([upstream issue](https://github.com/micromatch/braces/issues/73)). Next.js has also announced another security update for October 14, 2026, but had not published affected-version details at the time of the previous review ([announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)). Re-run audits and update dependencies before release.
 
-Last reviewed: 2026-10-11.
+Last reviewed: 2026-10-13.

@@ -12,6 +12,7 @@ import EventRail from '../components/EventRail'
 import FocusMode from '../components/FocusMode'
 import PaperAccountPanel from '../components/PaperAccountPanel'
 import PriceChart from '../components/PriceChart'
+import ResearchCandidatePanel from '../components/ResearchCandidatePanel'
 import RiskGlow from '../components/RiskGlow'
 import { DEMO_AGENT_OPINIONS, DEMO_DISCOURSE_LOG, DEMO_MARKET_STATE } from '../lib/demo-data'
 import { parsePaperDashboard, toMarketChartData } from '../lib/paper-dashboard'
@@ -138,6 +139,10 @@ export default function Home() {
         <div className="main-content mb-16 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="price-chart-section lg:col-span-3">
             <PriceChart data={marketData} />
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-3">
+            <ResearchCandidatePanel />
           </motion.div>
 
           {connectedToPaper && (
