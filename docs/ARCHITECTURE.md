@@ -130,6 +130,7 @@ Governance / Authorization
 Cross-cutting services should provide identity, observability, audit records, configuration management, and failure handling.
 
 This is a proposed design, not a description of deployed services.
+Potential open-source research references are catalogued in [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md). The directory is not an audit or endorsement; no source code or dependency is adopted, and AEGIS remains the proposed authority and governance layer.
 
 ## 5. Canonical Domain Objects
 

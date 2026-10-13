@@ -19,6 +19,7 @@ The reviewed repository contains:
 - Focus Mode and a command-wheel interface.
 - A browser-only, research-grade SMA validation prototype that accepts user-supplied daily bars and exports run records.
 - A Python FastAPI service with protected plugin routes, a trusted-local deterministic plugin runner, normalized read-only paper-data contracts, and a typed RSI/MACD/EMA candidate plugin behind an independent review-only gate; the dashboard displays candidate results only after a manual local-development request.
+- A curated, unreviewed open-source quant research directory and proposed AEGIS/Sentinel target flow in [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md); no listed project has been cloned, audited, or adopted.
 
 Mocked tests cover provider adapters and API routes; a separate user-authorized read-only paper connection was verified through the local API and proxy. The candidate gate checks market-data quality, freshness, and contract consistency but is not an account-aware risk model and cannot authorize trading. Live-account access, production data reliability, persistent analytical history, broker execution, and tested AEGIS Core integration are not established. Neither research prototype establishes a strategy edge or completes independent strategy validation.
 
@@ -102,6 +103,7 @@ Work items:
 - Add contradiction and missing-evidence handling.
 - Measure latency, cost, reliability, and analytical quality.
 - Persist analysis history.
+- Complete and maintain the repository due-diligence matrix before adopting upstream code or dependencies; see [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md). No candidate is approved by inclusion in the directory.
 
 **Exit criteria:**
 

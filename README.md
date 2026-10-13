@@ -128,6 +128,7 @@ npm run build
 - [Deployment Guide](docs/DEPLOYMENT.md)
 - [Threat Model](docs/THREAT_MODEL.md)
 - [Product Roadmap](docs/ROADMAP.md)
+- [Quantitative Research Ecosystem and Repository Review](docs/QUANT_RESEARCH_ECOSYSTEM.md)
 - [Strategy Validation Engine Prototype](docs/STRATEGY_VALIDATION_ENGINE.md)
 - [Contributing Guide](docs/CONTRIBUTING.md)
 
@@ -147,4 +148,4 @@ The code includes a browser-only strategy-validation prototype, a deterministic 
 
 The production dependency audit (`npm audit --omit=dev`) reports no known vulnerabilities. The full development audit reports **5 high-severity findings** through the transitive `braces@3.0.3` dependency used by the Next.js ESLint plugin; no patched npm release was available when checked and the upstream advisory is disputed ([upstream issue](https://github.com/micromatch/braces/issues/73)). Next.js has also announced another security update for October 14, 2026, but had not published affected-version details at the time of the previous review ([announcement](https://nextjs.org/blog/upcoming-nextjs-security-update-october-2026)). Re-run audits and update dependencies before release.
 
-Last reviewed: 2026-10-12.
+Last reviewed: 2026-10-13.
