@@ -79,6 +79,41 @@ def test_api_fails_closed_when_authentication_key_is_missing_or_too_short(
     assert api.API_KEY_ENV not in missing.text
 
 
+def test_development_bearer_key_cannot_manage_credentials_or_trade() -> None:
+    credential_status = asyncio.run(
+        _request("GET", "/api/v1/me/credentials/alpaca", headers=AUTH_HEADERS)
+    )
+    paper_order = asyncio.run(
+        _request(
+            "POST",
+            "/api/v1/paper/orders",
+            json={
+                "symbol": "SPY",
+                "side": "buy",
+                "quantity": "1",
+                "confirm_paper_order": True,
+            },
+            headers={**AUTH_HEADERS, "Idempotency-Key": "test-order-0001"},
+        )
+    )
+    assert credential_status.status_code == 403
+    assert paper_order.status_code == 403
+
+
+def test_invalid_credential_request_never_echoes_secret_value() -> None:
+    marker = "NEVER-ECHO-THIS-SECRET"
+    response = asyncio.run(
+        _request(
+            "PUT",
+            "/api/v1/me/credentials/alpaca",
+            json={"key_id": "paper-key", "secret_key": marker + ("x" * 4096)},
+            headers=AUTH_HEADERS,
+        )
+    )
+    assert response.status_code == 422
+    assert marker not in response.text
+
+
 def test_plugin_run_is_authenticated_and_deterministic() -> None:
     payload: dict[str, object] = {
         "seed": 7,
@@ -123,7 +158,9 @@ def test_plugin_run_rejects_unknown_plugins_and_extra_request_fields() -> None:
 def test_strategy_route_runs_candidate_review_and_generic_run_cannot_bypass_gate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(api, "_make_market_adapter", lambda: _FakeCandidateMarketAdapter())
+    monkeypatch.setattr(
+        api, "_make_market_adapter", lambda principal=None: _FakeCandidateMarketAdapter()
+    )
 
     missing_auth = asyncio.run(
         _request("GET", "/api/v1/research/strategies/rsi-macd-candidate?symbol=SPY")
@@ -170,7 +207,7 @@ def test_strategy_route_rejects_provider_symbol_or_timeframe_mismatch(
     monkeypatch.setattr(
         api,
         "_make_market_adapter",
-        lambda: _FakeCandidateMarketAdapter(
+        lambda principal=None: _FakeCandidateMarketAdapter(
             instrument_id=instrument_id,
             timeframe=timeframe,
         ),
@@ -258,6 +295,7 @@ class _FakePaperBroker:
             cash=Decimal("800.25"),
             buying_power=Decimal("1600.50"),
             observed_at=FIXED_NOW,
+            account_status="ACTIVE",
         )
 
     async def get_positions(self) -> tuple[PositionSnapshot, ...]:
@@ -277,8 +315,10 @@ class _FakePaperBroker:
 def test_paper_dashboard_returns_normalized_decimal_strings_and_no_execution_or_account_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(api, "_make_market_adapter", lambda: _FakeMarketAdapter())
-    monkeypatch.setattr(api, "_make_paper_broker_adapter", lambda: _FakePaperBroker())
+    monkeypatch.setattr(api, "_make_market_adapter", lambda principal=None: _FakeMarketAdapter())
+    monkeypatch.setattr(
+        api, "_make_paper_broker_adapter", lambda principal=None: _FakePaperBroker()
+    )
     response = asyncio.run(
         _request("GET", "/api/v1/paper/dashboard?symbol=spy&days=30", headers=AUTH_HEADERS)
     )
@@ -292,7 +332,7 @@ def test_paper_dashboard_returns_normalized_decimal_strings_and_no_execution_or_
     assert body["account"]["equity"] == "1000.25"
     assert "account_ref" not in body["account"]
     assert body["positions"][0]["instrument_id"] == "SPY"
-    assert not any("order" in path.lower() for path in api.app.openapi()["paths"])
+    assert "/api/v1/paper/orders" in api.app.openapi()["paths"]
 
 
 def test_paper_dashboard_requires_auth_and_valid_query() -> None:

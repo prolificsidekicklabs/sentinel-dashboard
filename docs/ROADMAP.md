@@ -19,9 +19,11 @@ The reviewed repository contains:
 - Focus Mode and a command-wheel interface.
 - A browser-only, research-grade SMA validation prototype that accepts user-supplied daily bars and exports run records.
 - A Python FastAPI service with protected plugin routes, a trusted-local deterministic plugin runner, normalized read-only paper-data contracts, and a typed RSI/MACD/EMA candidate plugin behind an independent review-only gate; the dashboard displays candidate results only after a manual local-development request.
+- A configurable OIDC-verifying API with scope enforcement, encrypted owner-scoped Alpaca credentials, SQLite experiment/order persistence, hash-chained local audit events, a fixed-parameter walk-forward backtest, an account-aware paper risk evaluator, and an optional Alpaca-paper-only order route that is disabled by default.
+- A fail-closed OCI/gVisor plugin runner for manifests marked untrusted. The image/runtime have not been built or adversarially tested in this environment.
 - A curated, unreviewed open-source quant research directory and proposed AEGIS/Sentinel target flow in [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md); no listed project has been cloned, audited, or adopted.
 
-Mocked tests cover provider adapters and API routes; a separate user-authorized read-only paper connection was verified through the local API and proxy. The candidate gate checks market-data quality, freshness, and contract consistency but is not an account-aware risk model and cannot authorize trading. Live-account access, production data reliability, persistent analytical history, broker execution, and tested AEGIS Core integration are not established. Neither research prototype establishes a strategy edge or completes independent strategy validation.
+Mocked tests cover the backend contracts and provider paths; a prior user-authorized read-only paper connection was verified through the local API and proxy. The new order adapter has mocked submission/reconciliation and risk-expiry tests, but no paper order was placed here. OIDC validation is implemented but no identity provider or browser login flow is configured; SQLite/KMS, container isolation, production data reliability, real paper-fill evidence, live-account access, and AEGIS integration remain unverified. Neither research prototype establishes a strategy edge or completes independent strategy validation.
 
 ## 3. Phase 0 — Stabilize the Prototype
 
@@ -79,7 +81,7 @@ Work items:
 - Display source and last-update information.
 - Test reconnects, missing observations, and delayed feeds.
 
-**Partial delivery:** An Alpaca market-bars adapter, an authenticated paper account/positions route, and a development-only dashboard proxy are implemented. Automated tests use mocked HTTP responses; after implementation, a user-authorized local read-only paper connection was verified through both FastAPI and the Next.js proxy, returning market bars and paper account/position data with execution disabled. No balances or holdings were displayed, and the temporary local credential/response files were removed. This confirms one paper-read path only. Freshness thresholds, live entitlement/licensing review, persistent credential management, retries/reconnect behavior, and broader account-specific validation remain open.
+**Partial delivery:** An Alpaca market-bars adapter, authenticated paper account/positions route, and development-only dashboard proxy are implemented. Automated tests use mocked HTTP responses; a prior user-authorized local read-only paper connection was checked through FastAPI and the Next.js proxy. Backtest/risk routes validate provider provenance and freshness, but general freshness monitoring and data-quality telemetry are not present. Entitlement/licensing review, persistent production credentials, retries/reconnect behavior, broad account validation, and production reliability remain open.
 
 **Exit criteria:**
 
@@ -92,7 +94,7 @@ Work items:
 
 **Objective:** Replace predefined agent opinions with reproducible analytical outputs.
 
-**Prototype status:** An initial client-side SMA crossover validator is implemented with basic CSV checks, next-open costed fills, a fixed chronological holdout, buy-and-hold comparison, risk summaries, and downloadable experiment records. A separate deterministic RSI/MACD/EMA candidate plugin now returns a typed directional label from normalized daily bars, passes it through a data-quality/freshness gate for human review, and appears in a manually triggered local-development dashboard panel. Both are software research prototypes only; neither completes this phase's evidence, provenance, robustness, predictive validation, or acceptance criteria.
+**Prototype status:** The client-side SMA prototype remains browser-only. The backend additionally runs fixed-parameter chronological walk-forward tests with next-open estimated fills, explicit costs, a buy-and-hold baseline, cost stress, dataset digest, and persisted owner-scoped experiment records. The deterministic RSI/MACD/EMA candidate plugin remains review-only. These are software research prototypes: they do not establish predictive edge, production-quality source completeness, significance, or the acceptance criteria for this phase.
 
 Work items:
 
@@ -102,7 +104,8 @@ Work items:
 - Define confidence semantics and calibration requirements.
 - Add contradiction and missing-evidence handling.
 - Measure latency, cost, reliability, and analytical quality.
-- Persist analysis history.
+- [x] Persist reproducible backtest inputs/results and dataset digests in the local single-node store.
+- [ ] Persist versioned agent assessments and evidence references in a production-grade data service.
 - Complete and maintain the repository due-diligence matrix before adopting upstream code or dependencies; see [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md). No candidate is approved by inclusion in the directory.
 
 **Exit criteria:**
@@ -116,12 +119,15 @@ Work items:
 
 **Objective:** Make risk and authorization explicit before any execution work.
 
+**Partial delivery:** Configurable OIDC JWT verification and server-side scope checks protect backend APIs; paper risk policy version `1.0.0` checks fresh Alpaca data/account state, active account status, an instrument allowlist, buying power, fixed notional/exposure limits, and long-only sell constraints. The local audit chain records policy reasons and order provenance. The API fails closed on invalid audit integrity. This does not provide interactive login, AEGIS governance, a managed/immutable audit service, intraday-loss limits, or live-trading authorization.
+
 Work items:
 
-- Define versioned risk policies.
-- Establish instrument, exposure, quantity, and loss constraints.
-- Separate analytical recommendations from authorization.
-- Record policy decisions and reasons.
+- [x] Define a versioned paper-only risk policy.
+- [x] Establish instrument, notional, buying-power, gross/symbol exposure, and long-only constraints.
+- [x] Separate analytical recommendations from the server-generated `RiskApprovedOrder` contract.
+- [x] Record policy decisions and reasons in the local hash-chained audit store.
+- [ ] Add intraday loss/drawdown controls and independent operational kill-switch procedures.
 - Add human review workflows for consequential actions.
 - Integrate AEGIS Core only through verified, documented contracts.
 - Test fail-closed behavior and policy overrides.
@@ -137,13 +143,16 @@ Work items:
 
 **Objective:** Validate proposed trading workflows without risking real capital.
 
+**Partial delivery:** A fixed-host Alpaca paper adapter accepts only a short-lived server-approved market order. The route is operator-disabled by default, OIDC-scope gated, requires explicit request confirmation, uses idempotent client order IDs, persists each transition, limits each user to one active order, and exposes reconciliation by idempotency key. Mocked tests cover submission, risk expiry, and reconciliation boundaries. No order was sent, no real broker fill/cancel/partial-fill lifecycle was observed, and the backtest fixtures are not paper-trading performance evidence.
+
 Work items:
 
-- Define order-intent and paper-execution contracts.
+- [x] Define order-intent and paper-execution contracts.
 - Model order lifecycle, partial fills, cancellations, and rejection.
 - Simulate slippage, transaction costs, and latency.
 - Reconcile intended actions with simulated outcomes.
-- Test duplicate requests and service outages.
+- [x] Test duplicate requests, unresolved outcomes, and concurrent-order reservation behavior at the persistence boundary.
+- [ ] Run and retain supervised paper-order/fill/reconciliation evidence with a paper-trading-enabled broker credential.
 - Compare performance against appropriate baselines.
 - Track risk-adjusted metrics and drawdowns.
 

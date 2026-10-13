@@ -373,6 +373,7 @@ class AlpacaReadOnlyBrokerAdapter:
                 cash=_as_decimal(data["cash"], "cash"),
                 buying_power=_as_decimal(data["buying_power"], "buying_power"),
                 observed_at=self.clock(),
+                account_status=str(data["status"]),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise AlpacaError("Alpaca account failed normalized validation") from exc

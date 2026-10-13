@@ -17,6 +17,7 @@ from pydantic import ValidationError
 
 from sentinel_core.contracts import PluginResult, PluginRunRequest
 from sentinel_core.manifest import ManifestError, PluginManifest, PluginPermission, load_manifest
+from sentinel_core.oci_sandbox import OCISandboxRunner, SandboxUnavailable
 
 _PLUGIN_ID_RE = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
 
@@ -43,6 +44,10 @@ class PluginInputTooLarge(PluginExecutionError):
 
 class PluginOutputTooLarge(PluginExecutionError):
     """Raised when the worker exceeds its bounded output channel."""
+
+
+class PluginSandboxUnavailable(PluginExecutionError):
+    """Raised when an untrusted plugin has no functioning isolated OCI sandbox."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +80,7 @@ class PluginRuntime:
         max_input_bytes: int = 256 * 1024,
         max_output_bytes: int = 512 * 1024,
         max_concurrent_runs: int = 4,
+        sandbox_runner: OCISandboxRunner | None = None,
     ) -> None:
         if timeout_seconds <= 0 or cpu_seconds < 1 or max_concurrent_runs < 1:
             raise ValueError("runtime limits must be positive")
@@ -85,6 +91,7 @@ class PluginRuntime:
         self.memory_limit_bytes = memory_limit_bytes
         self.max_input_bytes = max_input_bytes
         self.max_output_bytes = max_output_bytes
+        self.sandbox_runner = sandbox_runner
         self._semaphore = asyncio.Semaphore(max_concurrent_runs)
 
     def list_plugins(self) -> list[PluginManifest]:
@@ -157,9 +164,21 @@ class PluginRuntime:
             raise PluginInputTooLarge("plugin request exceeds the configured byte limit")
 
         async with self._semaphore:
-            response_bytes, return_code, worker_pid = await self._invoke_worker(
-                encoded_request, request.seed
-            )
+            if manifest.trust_level == "untrusted":
+                if self.sandbox_runner is None:
+                    raise PluginSandboxUnavailable("untrusted plugin execution is disabled")
+                try:
+                    response_bytes, return_code, worker_pid = await self.sandbox_runner.run(
+                        plugin_file.parent, encoded_request, seed=request.seed
+                    )
+                except SandboxUnavailable as exc:
+                    raise PluginSandboxUnavailable(
+                        "untrusted plugin execution is unavailable"
+                    ) from exc
+            else:
+                response_bytes, return_code, worker_pid = await self._invoke_worker(
+                    encoded_request, request.seed
+                )
 
         if len(response_bytes) > self.max_output_bytes:
             raise PluginOutputTooLarge("plugin output exceeds the configured byte limit")
