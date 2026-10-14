@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from typing import Any
 
 from sentinel_core.contracts import PluginContext, PluginResult
@@ -17,8 +18,8 @@ class MovingAveragePlugin:
         window: Any = data.get("window")
         instrument: Any = data.get("instrument", "UNKNOWN")
 
-        if not isinstance(prices, list) or len(prices) < 2:
-            raise ValueError("prices must be a list containing at least two values")
+        if not isinstance(prices, Sequence) or isinstance(prices, (str, bytes)) or len(prices) < 2:
+            raise ValueError("prices must be a sequence containing at least two values")
         if type(window) is not int or window < 2 or window > len(prices):
             raise ValueError("window must be an integer from 2 through the number of prices")
         if not isinstance(instrument, str) or not instrument.strip():

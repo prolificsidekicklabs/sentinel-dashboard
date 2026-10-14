@@ -2,9 +2,9 @@
 
 ## What is implemented
 
-Sentinel now includes a local `strategy` plugin, `rsi-macd-candidate`, that accepts an explicit chronological series of daily market bars and returns a versioned, Pydantic-validated candidate signal. It is deterministic, uses no network/client/account context, requests no permissions, does not size a position, and cannot submit or manage orders. The signal’s `execution_enabled` field is fixed to `false`.
+Sentinel now includes a local `strategy` plugin, `rsi-macd-candidate`, implementing plugin API v1.0. It receives a typed, deeply read-only `PluginMarketContextV1` with chronological OHLCV bars and provenance, and returns a versioned, Pydantic-validated candidate signal. It is deterministic, receives no network/client/account context, requests no permissions, does not size a position, and cannot submit or manage orders. The signal’s `execution_enabled` field is fixed to `false`.
 
-The authenticated endpoint `GET /api/v1/research/strategies/rsi-macd-candidate?symbol=SPY` retrieves up to 365 calendar days of normalized historical bars through Sentinel’s existing Alpaca market-data adapter, runs the plugin in the bounded child process, validates its typed result, and then passes it to the separate core `CandidateRiskGate`. A strategy plugin cannot be run through the generic plugin-execution endpoint, preventing callers from bypassing that gate through the API. The response returns only signal/indicator and market-quality metadata; it contains no broker account or position data.
+The authenticated endpoint `GET /api/v1/research/strategies/rsi-macd-candidate?symbol=SPY` retrieves up to 365 calendar days of normalized historical bars through Sentinel’s existing Alpaca market-data adapter, runs the plugin in the bounded child process, validates its typed result, and then passes it to the separate core `CandidateRiskGate`. After validation, the host records the signal, review disposition, plugin/API versions, market metadata, and output hash in the local append-only audit chain; the response includes that record ID. A strategy plugin cannot be run through the generic plugin-execution endpoint, preventing callers from bypassing the gate. The response contains no broker account or position data. Audit-chain integrity is tamper-evident but is not external immutable storage.
 
 ## Rule and reproducibility
 
@@ -22,4 +22,4 @@ Sentinel borrows only the indicator concept. It intentionally does not import th
 
 ## Local verification
 
-Use the normal backend quality suite (Ruff formatting/lint, mypy, pytest). Tests cover exact Wilder recurrence, deterministic output, invalid and insufficient bar input, typed output, stale/inconsistent snapshots, generic-run bypass prevention, and the non-execution invariant. Live market-data freshness depends on provider response and entitlement; no account or order method is used by this endpoint.
+Use the normal backend quality suite (Ruff formatting/lint, mypy, pytest) and `python -m sentinel_core.validation_harness` from `backend/`. Tests cover exact Wilder recurrence, immutable typed input, deterministic output, invalid and insufficient bar input, stale/inconsistent snapshots, host-side output validation and audit recording, generic-run bypass prevention, and the non-execution invariant. Live market-data freshness depends on provider response and entitlement; no account or order method is used by this endpoint. See the [plugin contract](PLUGIN_CONTRACT.md) for versioning and boundary details.

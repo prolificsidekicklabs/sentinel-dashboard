@@ -101,6 +101,7 @@ The browser must be treated as an untrusted environment. Client-side state is no
 - No live-execution route or UI exists. The optional order API is paper-only, disabled by default, and always targets the official Alpaca paper host.
 - Backend routes verify OIDC token signature, issuer, audience, expiry, and scopes. The legacy shared bearer-key path is development-only and does not authorize credential management or paper trading. The Next.js proxy remains local-development-only and is not connected to an interactive login flow.
 - Plugin discovery requires `plugins:read`; generic plugin execution separately requires `plugins:run`. The shared development key receives these local capabilities only outside production; plugin context contains supplied JSON and deterministic randomness, not broker credentials or service clients.
+- Plugin API v1.0 passes defensive immutable JSON and optional typed, immutable OHLCV context only. Candidate output is revalidated by the host, evaluated by the independent review-only gate, and recorded with version/provenance metadata in the local audit chain; failure to record fails the request closed.
 - Paper orders require `paper:trade`, explicit `confirm_paper_order: true`, user-owned encrypted credentials, a valid idempotency key, fresh market/account snapshots, an active account, an instrument allowlist, bounded notional/exposure, and a short-lived server-generated risk approval.
 - A SQLite partial unique index and API check allow at most one non-terminal paper order per user, including concurrent submissions. Unknown/active orders require reconciliation before another order is accepted; no cancel or liquidation endpoint is implemented.
 - Paper order intent, provider status, risk policy/version/reasons, and market/account provenance are written to a hash-chained audit log. These checks are server-side; browser state and synthetic risk visuals do not authorize execution.
@@ -172,7 +173,7 @@ The browser must be treated as an untrusted environment. Client-side state is no
 - The gate can block, report no candidate, or require human review. It always returns `execution_enabled: false` and identifies account exposure, sizing, and stop-loss/drawdown controls as unassessed.
 - Keep the plugin deterministic and local, with no network, provider credential, account, or broker context. The local subprocess is for trusted repository-reviewed code, not hostile marketplace plugins.
 
-**Remaining risk:** The technical rule is not validated, backtested, or demonstrated to have predictive value. The review gate checks data/contract conditions only and must never be reused as an order-risk evaluator.
+**Remaining risk:** The technical rule is not validated, backtested, or demonstrated to have predictive value. The local audit chain is tamper-evident rather than externally immutable. The review gate checks data/contract conditions only and must never be reused as an order-risk evaluator.
 
 ### 4.11 Malicious third-party plugin escape
 

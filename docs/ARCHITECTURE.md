@@ -25,6 +25,7 @@ pages/index.jsx
           +-- FastAPI API (OIDC JWT validation; dev API-key compatibility only)
                 |
                 +-- SQLite: encrypted user credentials, experiments, paper orders, audit chain
+                +-- Versioned v1.0 plugin contract + read-only typed market context
                 +-- Trusted plugin subprocess; untrusted plugin -> fail-closed OCI/gVisor runner
                 +-- Alpaca bars + paper account/positions adapters
                 +-- Fixed-parameter walk-forward backtest
@@ -60,6 +61,7 @@ Authenticated FastAPI research routes
     +-- OIDC verification / scope enforcement
     +-- Alpaca historical bars with provider provenance and freshness checks
     +-- Deterministic RSI/MACD/EMA research candidate behind CandidateRiskGate
+    +-- Host validates candidate output and records it in the local audit chain
     +-- Reproducible rolling walk-forward backtest with cost stress and baseline
     +-- Owner-scoped experiment persistence
 

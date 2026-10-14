@@ -15,6 +15,7 @@ def test_example_manifest_parses_into_typed_metadata() -> None:
     manifest = load_manifest(SAMPLE_MANIFEST)
 
     assert manifest.plugin_id == "moving-average"
+    assert manifest.plugin_api_version == "1.0"
     assert manifest.plugin_type is PluginType.INDICATOR
     assert manifest.permissions == ()
     assert manifest.deterministic is True
@@ -44,6 +45,7 @@ def test_unknown_manifest_fields_are_rejected(tmp_path: Path) -> None:
     manifest_path = tmp_path / "sentinel_manifest.yaml"
     manifest_path.write_text(
         "manifest_version: '1.0'\n"
+        "plugin_api_version: '1.0'\n"
         "plugin_id: sample\n"
         "name: Sample\n"
         "version: 1.0.0\n"

@@ -18,7 +18,7 @@ The reviewed repository contains:
 - Risk visualization.
 - Focus Mode and a command-wheel interface.
 - A browser-only, research-grade SMA validation prototype that accepts user-supplied daily bars and exports run records.
-- A Python FastAPI service with protected plugin routes, a trusted-local deterministic plugin runner, normalized read-only paper-data contracts, and a typed RSI/MACD/EMA candidate plugin behind an independent review-only gate; the dashboard displays candidate results only after a manual local-development request.
+- A Python FastAPI service with protected plugin routes, a versioned v1.0 plugin API, deeply read-only typed market context, a deterministic offline fixture harness, and a typed RSI/MACD/EMA research candidate that the host validates, independently gates, and records in its local audit chain; the dashboard displays candidate results only after a manual local-development request.
 - A configurable OIDC-verifying API with scope enforcement, encrypted owner-scoped Alpaca credentials, SQLite experiment/order persistence, hash-chained local audit events, a fixed-parameter walk-forward backtest, an account-aware paper risk evaluator, and an optional Alpaca-paper-only order route that is disabled by default.
 - A fail-closed OCI/gVisor plugin runner for manifests marked untrusted. The image/runtime have not been built or adversarially tested in this environment.
 - A curated, unreviewed open-source quant research directory and proposed AEGIS/Sentinel target flow in [Quantitative Research Ecosystem](QUANT_RESEARCH_ECOSYSTEM.md); no listed project has been cloned, audited, or adopted.

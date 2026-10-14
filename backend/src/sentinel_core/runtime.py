@@ -12,10 +12,11 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from pydantic import ValidationError
 
-from sentinel_core.contracts import PluginResult, PluginRunRequest
+from sentinel_core.contracts import PLUGIN_API_VERSION, PluginResult, PluginRunRequest
 from sentinel_core.manifest import ManifestError, PluginManifest, PluginPermission, load_manifest
 from sentinel_core.oci_sandbox import OCISandboxRunner, SandboxUnavailable
 
@@ -56,6 +57,7 @@ class PluginExecution:
 
     plugin_id: str
     plugin_version: str
+    plugin_api_version: Literal["1.0"]
     seed: int
     result: PluginResult
     output_sha256: str
@@ -142,14 +144,25 @@ class PluginRuntime:
         """Run one plugin with explicit input and a repeatable random seed."""
         directory, manifest, plugin_file, class_name = self._resolve_plugin(plugin_id)
         del directory  # Only the validated entrypoint path is needed by the worker.
+        if (
+            request.plugin_api_version != manifest.plugin_api_version
+            or manifest.plugin_api_version != PLUGIN_API_VERSION
+        ):
+            raise PluginExecutionError("plugin API version is not supported")
 
         worker_request = {
             "plugin_id": manifest.plugin_id,
             "plugin_version": manifest.version,
+            "plugin_api_version": manifest.plugin_api_version,
             "plugin_file": str(plugin_file),
             "class_name": class_name,
             "seed": request.seed,
             "input": request.input,
+            "market_context": (
+                request.market_context.model_dump(mode="json")
+                if request.market_context is not None
+                else None
+            ),
             "cpu_seconds": self.cpu_seconds,
             "memory_limit_bytes": self.memory_limit_bytes,
             "max_output_bytes": self.max_output_bytes,
@@ -195,8 +208,10 @@ class PluginRuntime:
             output_payload = {
                 "plugin_id": manifest.plugin_id,
                 "plugin_version": manifest.version,
+                "plugin_api_version": manifest.plugin_api_version,
                 "seed": request.seed,
                 "input": request.input,
+                "market_context": worker_request["market_context"],
                 "result": result_json,
             }
             canonical = json.dumps(
@@ -208,6 +223,7 @@ class PluginRuntime:
         return PluginExecution(
             plugin_id=manifest.plugin_id,
             plugin_version=manifest.version,
+            plugin_api_version=manifest.plugin_api_version,
             seed=request.seed,
             result=result,
             output_sha256=hashlib.sha256(canonical).hexdigest(),

@@ -35,7 +35,9 @@ The separate `rsi-macd-candidate` route remains a research-only directional labe
 
 ## Plugin trust boundary
 
-Trusted, repository-reviewed local plugins can use the existing bounded subprocess runner. A manifest explicitly marked untrusted is routed only to the OCI runner, which **fails closed** unless an operator configures a digest-pinned worker image and rootless Docker with gVisor (`runsc`). The container uses no network, a read-only plugin mount/root filesystem, dropped capabilities, non-root UID, resource limits, a bounded protocol, and a hard timeout.
+Every plugin manifest declares **plugin API v1.0**, separately from its own semantic version. Trusted, repository-reviewed local plugins can use the existing bounded subprocess runner and receive a defensive, deeply read-only JSON input plus an optional typed, account-free OHLCV market context. Candidate strategy outputs are schema-validated by the host, independently passed through the research-only review gate, and written to the local append-only audit chain with a record ID; recording failure prevents the result from being returned. Strategy plugins cannot use the generic run endpoint, and no plugin output authorizes an order. See the [plugin contract](docs/PLUGIN_CONTRACT.md).
+
+A manifest explicitly marked untrusted is routed only to the OCI runner, which **fails closed** unless an operator configures a digest-pinned worker image and rootless Docker with gVisor (`runsc`). The container uses no network, a read-only plugin mount/root filesystem, dropped capabilities, non-root UID, resource limits, a bounded protocol, and a hard timeout.
 
 The sandbox worker image recipe is in `sandbox/Dockerfile`. The current environment has not built or run the OCI image; no claim of adversarial security testing is made. Do not enable marketplace plugins until the image is built from reviewed, pinned dependencies and the exact deployment runtime passes isolation and escape testing.
 
@@ -58,6 +60,9 @@ ruff format --check src plugins tests
 ruff check src plugins tests
 mypy src plugins/rsi-macd-candidate/plugin.py
 pytest -q
+python -m sentinel_core.validation_harness
 ```
+
+The offline harness replays each built-in fixed fixture twice, checks output-hash stability, validates the typed candidate, and runs the review-only gate without provider access.
 
 The backend has a separate GitHub Actions workflow. Run the root Next.js lint, type-check, tests, dependency audit, and build as well; backend CI does not replace those checks.

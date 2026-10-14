@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import math
 import re
-from datetime import UTC, datetime
-from typing import Any, Literal
+from datetime import datetime
+from typing import Literal
 
 from sentinel_core.candidate_strategy import (
     CandidateClass,
     CandidateSignal,
     TechnicalIndicatorValues,
 )
-from sentinel_core.contracts import PluginContext, PluginResult
+from sentinel_core.contracts import PluginContext, PluginMarketContextV1, PluginResult
 
 MINIMUM_BARS = 200
 MAXIMUM_BARS = 1000
@@ -26,66 +26,21 @@ EMA_SLOW = 200
 _SYMBOL_RE = re.compile(r"^[A-Z0-9.\-]{1,20}$")
 
 
-def _parse_timestamp(value: Any, label: str) -> datetime:
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"{label} must be an ISO-8601 timestamp")
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise ValueError(f"{label} must be an ISO-8601 timestamp") from exc
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise ValueError(f"{label} must include a timezone")
-    return parsed.astimezone(UTC)
-
-
-def _parse_closes(data: Any) -> tuple[str, Literal["1Day"], datetime, list[float]]:
-    if not isinstance(data, dict):
-        raise ValueError("input must be an object")
-    instrument = data.get("instrument_id")
-    if not isinstance(instrument, str) or not _SYMBOL_RE.fullmatch(instrument.strip().upper()):
+def _parse_market_context(
+    market: PluginMarketContextV1,
+) -> tuple[str, Literal["1Day"], datetime, list[float]]:
+    """Read normalized closes from the immutable v1 market snapshot."""
+    if not _SYMBOL_RE.fullmatch(market.instrument_id.strip().upper()):
         raise ValueError("instrument_id must be a valid ticker symbol")
-    normalized_instrument = instrument.strip().upper()
-    if data.get("timeframe") != "1Day":
+    if market.timeframe != "1Day":
         raise ValueError("this candidate strategy supports only the 1Day timeframe")
     timeframe: Literal["1Day"] = "1Day"
-
-    bars: Any = data.get("bars")
-    if not isinstance(bars, list) or len(bars) > MAXIMUM_BARS:
-        raise ValueError(f"bars must be a list with no more than {MAXIMUM_BARS} entries")
-    closes: list[float] = []
-    timestamps: list[datetime] = []
-    for index, bar in enumerate(bars):
-        if not isinstance(bar, dict):
-            raise ValueError(f"bars[{index}] must be an object")
-        bar_instrument = bar.get("instrument_id", normalized_instrument)
-        if (
-            not isinstance(bar_instrument, str)
-            or bar_instrument.strip().upper() != normalized_instrument
-        ):
-            raise ValueError(f"bars[{index}] instrument_id does not match the request")
-        timestamp = _parse_timestamp(bar.get("observed_at"), f"bars[{index}].observed_at")
-        if timestamps and timestamp <= timestamps[-1]:
-            raise ValueError("bars must be strictly chronological and have unique timestamps")
-        raw_close = bar.get("close")
-        if isinstance(raw_close, bool) or not isinstance(raw_close, (str, int, float)):
-            raise ValueError(f"bars[{index}].close must be a finite positive number")
-        try:
-            close = float(raw_close)
-        except (TypeError, ValueError, OverflowError) as exc:
-            raise ValueError(f"bars[{index}].close must be a finite positive number") from exc
-        if not math.isfinite(close) or close <= 0:
-            raise ValueError(f"bars[{index}].close must be a finite positive number")
-        timestamps.append(timestamp)
-        closes.append(close)
-
-    if timestamps:
-        as_of = timestamps[-1]
-        supplied_as_of = data.get("observed_at")
-        if supplied_as_of is not None and _parse_timestamp(supplied_as_of, "observed_at") != as_of:
-            raise ValueError("observed_at must match the latest bar")
-    else:
-        as_of = _parse_timestamp(data.get("observed_at"), "observed_at")
-    return normalized_instrument, timeframe, as_of, closes
+    if len(market.bars) > MAXIMUM_BARS:
+        raise ValueError(f"bars must contain no more than {MAXIMUM_BARS} entries")
+    closes = [float(value) for value in market.closes]
+    if any(not math.isfinite(value) or value <= 0 for value in closes):
+        raise ValueError("market closes must be finite positive numbers")
+    return market.instrument_id.strip().upper(), timeframe, market.observed_at, closes
 
 
 def _wilder_rsi(prices: list[float], period: int) -> float | None:
@@ -153,7 +108,9 @@ class RsiMacdCandidatePlugin:
     """Emit a directional candidate label without sizing, orders, or provider access."""
 
     async def run(self, context: PluginContext) -> PluginResult:
-        instrument, timeframe, as_of, closes = _parse_closes(context.input_data)
+        if context.plugin_api_version != "1.0" or context.market_context is None:
+            raise ValueError("a typed plugin API v1.0 market context is required")
+        instrument, timeframe, as_of, closes = _parse_market_context(context.market_context)
         bar_count = len(closes)
         if bar_count < MINIMUM_BARS:
             signal = CandidateSignal(
@@ -162,7 +119,7 @@ class RsiMacdCandidatePlugin:
                 as_of=as_of,
                 bar_count=bar_count,
                 candidate=CandidateClass.NONE,
-                reason_codes=["insufficient_history"],
+                reason_codes=("insufficient_history",),
                 indicators=None,
             )
             return PluginResult(output={"signal": signal.model_dump(mode="json")})
@@ -202,7 +159,7 @@ class RsiMacdCandidatePlugin:
             as_of=as_of,
             bar_count=bar_count,
             candidate=candidate,
-            reason_codes=reasons,
+            reason_codes=tuple(reasons),
             indicators=indicators,
         )
         return PluginResult(output={"signal": signal.model_dump(mode="json")})

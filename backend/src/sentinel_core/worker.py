@@ -65,8 +65,10 @@ async def _execute(request: dict[str, Any]) -> PluginResult:
     context = PluginContext.create(
         plugin_id=request["plugin_id"],
         plugin_version=request["plugin_version"],
+        plugin_api_version=request["plugin_api_version"],
         seed=request["seed"],
         input_data=request["input"],
+        market_context=request.get("market_context"),
     )
     result = await plugin.run(context)
     if not isinstance(result, PluginResult):

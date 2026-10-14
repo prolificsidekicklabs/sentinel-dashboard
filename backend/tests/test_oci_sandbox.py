@@ -52,6 +52,7 @@ def test_untrusted_plugin_never_falls_back_to_local_worker(tmp_path) -> None:
     plugin_dir.mkdir()
     (plugin_dir / "sentinel_manifest.yaml").write_text(
         """manifest_version: '1.0'
+plugin_api_version: '1.0'
 plugin_id: untrusted-example
 name: Untrusted example
 version: 1.0.0

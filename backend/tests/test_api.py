@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -63,6 +66,7 @@ def test_protected_plugin_routes_require_bearer_authentication() -> None:
     assert wrong.status_code == 401
     assert allowed.status_code == 200
     assert allowed.json()[0]["plugin_id"] == "moving-average"
+    assert allowed.json()[0]["plugin_api_version"] == "1.0"
     assert "plugin_file" not in allowed.json()[0]
 
 
@@ -179,6 +183,7 @@ def test_plugin_run_is_authenticated_and_deterministic() -> None:
 
     assert missing.status_code == 401
     assert first.status_code == 200
+    assert first.json()["plugin_api_version"] == "1.0"
     assert first.json()["output_sha256"] == second.json()["output_sha256"]
     assert first.json()["result"]["output"]["simple_moving_average"] == 11.0
 
@@ -207,7 +212,10 @@ def test_plugin_run_rejects_unknown_plugins_and_extra_request_fields() -> None:
 
 def test_strategy_route_runs_candidate_review_and_generic_run_cannot_bypass_gate(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
+    store = api.DurableStore(tmp_path / "candidate-audit.sqlite3")
+    monkeypatch.setattr(api, "_store", lambda: store)
     monkeypatch.setattr(
         api, "_make_market_adapter", lambda principal=None: _FakeCandidateMarketAdapter()
     )
@@ -236,6 +244,8 @@ def test_strategy_route_runs_candidate_review_and_generic_run_cannot_bypass_gate
     body = response.json()
     assert body["mode"] == "research-candidate"
     assert body["execution_enabled"] is False
+    assert body["plugin_api_version"] == "1.0"
+    assert len(body["record_id"]) == 32
     assert body["signal"]["execution_enabled"] is False
     assert body["signal"]["bar_count"] == 220
     assert body["review"]["disposition"] == "no_candidate"
@@ -243,6 +253,76 @@ def test_strategy_route_runs_candidate_review_and_generic_run_cannot_bypass_gate
     assert "account" not in body and "positions" not in body
     assert bypass.status_code == 409
     assert "independent research review endpoint" in bypass.json()["detail"]
+    owner_id = hashlib.sha256(b"sentinel-local-development-service").hexdigest()
+    events = store.list_audit_events(owner_id)
+    assert len(events) == 1
+    assert events[0]["event_id"] == body["record_id"]
+    assert events[0]["event_type"] == "research.candidate.evaluated"
+    assert events[0]["payload"]["signal"] == body["signal"]
+    assert events[0]["payload"]["output_sha256"] == body["output_sha256"]
+    assert store.verify_audit_chain()
+
+
+def test_candidate_route_fails_closed_when_audit_recording_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FailingAuditStore:
+        def append_audit_event(self, *args, **kwargs) -> str:
+            raise api.StorageError("audit storage is unavailable")
+
+    monkeypatch.setattr(
+        api, "_make_market_adapter", lambda principal=None: _FakeCandidateMarketAdapter()
+    )
+    monkeypatch.setattr(api, "_store", lambda: _FailingAuditStore())
+    response = asyncio.run(
+        _request(
+            "GET",
+            "/api/v1/research/strategies/rsi-macd-candidate?symbol=SPY",
+            headers=AUTH_HEADERS,
+        )
+    )
+
+    assert response.status_code == 503
+    assert "durably recorded" in response.json()["detail"]
+
+
+def test_candidate_route_rejects_untrusted_output_before_recording(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _RecordingStore:
+        records = 0
+
+        def append_audit_event(self, *args, **kwargs) -> str:
+            self.records += 1
+            return "a" * 32
+
+    store = _RecordingStore()
+
+    async def invalid_plugin_output(*args, **kwargs):
+        return SimpleNamespace(
+            plugin_id="rsi-macd-candidate",
+            plugin_version="0.1.0",
+            plugin_api_version="1.0",
+            output_sha256="b" * 64,
+            result=SimpleNamespace(output={"signal": {"execution_enabled": True}}),
+        )
+
+    monkeypatch.setattr(
+        api, "_make_market_adapter", lambda principal=None: _FakeCandidateMarketAdapter()
+    )
+    monkeypatch.setattr(api.runtime, "run", invalid_plugin_output)
+    monkeypatch.setattr(api, "_store", lambda: store)
+    response = asyncio.run(
+        _request(
+            "GET",
+            "/api/v1/research/strategies/rsi-macd-candidate?symbol=SPY",
+            headers=AUTH_HEADERS,
+        )
+    )
+
+    assert response.status_code == 502
+    assert "invalid typed signal" in response.json()["detail"]
+    assert store.records == 0
 
 
 @pytest.mark.parametrize(

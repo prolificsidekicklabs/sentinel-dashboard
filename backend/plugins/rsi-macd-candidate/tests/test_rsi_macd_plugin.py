@@ -4,13 +4,14 @@ import asyncio
 import importlib.util
 import math
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from sentinel_core.candidate_strategy import CandidateClass
-from sentinel_core.contracts import PluginContext
+from sentinel_core.contracts import PluginContext, PluginMarketBarV1, PluginMarketContextV1
 
 PLUGIN_PATH = Path(__file__).resolve().parents[1] / "plugin.py"
 SPEC = importlib.util.spec_from_file_location("rsi_macd_candidate_plugin", PLUGIN_PATH)
@@ -19,22 +20,41 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
-def _input(prices: list[float], *, timeframe: str = "1Day") -> dict[str, Any]:
+def _market_context(prices: list[float], *, timeframe: str = "1Day") -> PluginMarketContextV1:
     end = datetime(2026, 10, 9, 20, 0, tzinfo=UTC)
-    bars = [
-        {
-            "instrument_id": "SPY",
-            "observed_at": (end - timedelta(days=len(prices) - index - 1)).isoformat(),
-            "close": str(price),
-        }
+    bars = tuple(
+        PluginMarketBarV1(
+            instrument_id="SPY",
+            observed_at=end - timedelta(days=len(prices) - index - 1),
+            open=Decimal(str(price)),
+            high=Decimal(str(price + 1)),
+            low=Decimal(str(price - 1)),
+            close=Decimal(str(price)),
+            volume=Decimal("1000"),
+            currency="USD",
+            source_id="fixture:daily",
+        )
         for index, price in enumerate(prices)
-    ]
-    return {
-        "instrument_id": "spy",
-        "timeframe": timeframe,
-        "observed_at": end.isoformat(),
-        "bars": bars,
-    }
+    )
+    return PluginMarketContextV1(
+        instrument_id="SPY",
+        timeframe=timeframe,
+        source_id="fixture:daily",
+        quality="valid",
+        observed_at=end,
+        received_at=end,
+        bars=bars,
+    )
+
+
+def _context(prices: list[float], *, timeframe: str = "1Day") -> PluginContext:
+    return PluginContext.create(
+        plugin_id="rsi-macd-candidate",
+        plugin_version="0.1.0",
+        seed=0,
+        input_data={},
+        market_context=_market_context(prices, timeframe=timeframe),
+    )
 
 
 def test_wilder_rsi_uses_recursive_smoothing_not_a_rolling_average() -> None:
@@ -48,14 +68,9 @@ def test_flat_series_has_finite_neutral_rsi() -> None:
 
 
 def test_short_history_returns_typed_non_executable_no_candidate() -> None:
-    context = PluginContext.create(
-        plugin_id="rsi-macd-candidate",
-        plugin_version="0.1.0",
-        seed=0,
-        input_data=_input([100.0 + index for index in range(40)]),
+    result = asyncio.run(
+        MODULE.RsiMacdCandidatePlugin().run(_context([100.0 + index for index in range(40)]))
     )
-
-    result = asyncio.run(MODULE.RsiMacdCandidatePlugin().run(context))
     signal = result.output["signal"]
 
     assert signal["candidate"] == CandidateClass.NONE.value
@@ -66,13 +81,7 @@ def test_short_history_returns_typed_non_executable_no_candidate() -> None:
 
 def test_indicator_snapshot_is_finite_and_repeatable() -> None:
     prices = [100.0 + index * 0.02 + 1.5 * math.sin(index / 5) for index in range(240)]
-    request = _input(prices)
-    context = PluginContext.create(
-        plugin_id="rsi-macd-candidate",
-        plugin_version="0.1.0",
-        seed=17,
-        input_data=request,
-    )
+    context = _context(prices)
     plugin = MODULE.RsiMacdCandidatePlugin()
 
     first = asyncio.run(plugin.run(context)).model_dump(mode="json")
@@ -119,63 +128,34 @@ def test_uptrend_and_downtrend_can_emit_only_directional_candidate_labels() -> N
     )
 
     for prices, expected_candidate in fixtures:
-        context = PluginContext.create(
-            plugin_id="rsi-macd-candidate",
-            plugin_version="0.1.0",
-            seed=0,
-            input_data=_input(prices),
-        )
-        signal = asyncio.run(MODULE.RsiMacdCandidatePlugin().run(context)).output["signal"]
+        signal = asyncio.run(MODULE.RsiMacdCandidatePlugin().run(_context(prices))).output["signal"]
 
         assert signal["candidate"] == expected_candidate
         assert signal["execution_enabled"] is False
 
 
-def test_invalid_timeframe_unsorted_bars_and_non_finite_closes_are_rejected() -> None:
-    valid = _input([100.0 + index for index in range(10)])
-    plugin = MODULE.RsiMacdCandidatePlugin()
+def test_invalid_timeframe_is_rejected_by_the_strategy() -> None:
+    context = _context([100.0 + index for index in range(10)], timeframe="1Hour")
 
-    bad_timeframe = {**valid, "timeframe": "1Hour"}
-    context = PluginContext.create(
-        plugin_id="rsi-macd-candidate",
-        plugin_version="0.1.0",
-        seed=0,
-        input_data=bad_timeframe,
-    )
     with pytest.raises(ValueError, match="1Day"):
-        asyncio.run(plugin.run(context))
-
-    unsorted = {**valid, "bars": list(reversed(valid["bars"]))}
-    context = PluginContext.create(
-        plugin_id="rsi-macd-candidate",
-        plugin_version="0.1.0",
-        seed=0,
-        input_data=unsorted,
-    )
-    with pytest.raises(ValueError, match="chronological"):
-        asyncio.run(plugin.run(context))
-
-    non_finite = _input([100.0] * 5)
-    non_finite["bars"][2]["close"] = "NaN"
-    context = PluginContext.create(
-        plugin_id="rsi-macd-candidate",
-        plugin_version="0.1.0",
-        seed=0,
-        input_data=non_finite,
-    )
-    with pytest.raises(ValueError, match="finite positive"):
-        asyncio.run(plugin.run(context))
-
-
-def test_mismatched_snapshot_timestamp_is_rejected() -> None:
-    payload = _input([100.0, 101.0, 102.0])
-    payload["observed_at"] = (datetime(2026, 10, 10, tzinfo=UTC)).isoformat()
-    context = PluginContext.create(
-        plugin_id="rsi-macd-candidate",
-        plugin_version="0.1.0",
-        seed=0,
-        input_data=payload,
-    )
-
-    with pytest.raises(ValueError, match="latest bar"):
         asyncio.run(MODULE.RsiMacdCandidatePlugin().run(context))
+
+
+def test_unsorted_bars_non_finite_values_and_snapshot_timestamp_mismatch_are_rejected() -> None:
+    valid = _market_context([100.0, 101.0, 102.0]).model_dump()
+
+    unsorted = {**valid, "bars": tuple(reversed(valid["bars"]))}
+    with pytest.raises(ValidationError, match="chronological"):
+        PluginMarketContextV1.model_validate(unsorted)
+
+    non_finite = {**valid, "bars": list(valid["bars"])}
+    non_finite["bars"][1] = {**non_finite["bars"][1], "close": Decimal("NaN")}
+    with pytest.raises(ValidationError):
+        PluginMarketContextV1.model_validate(non_finite)
+
+    mismatched = {
+        **valid,
+        "observed_at": datetime(2026, 10, 10, tzinfo=UTC),
+    }
+    with pytest.raises(ValidationError, match="latest bar"):
+        PluginMarketContextV1.model_validate(mismatched)
