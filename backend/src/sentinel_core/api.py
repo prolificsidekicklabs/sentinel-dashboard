@@ -144,7 +144,9 @@ async def require_api_key(
     return Principal(
         owner_id=owner_id,
         subject="local-development-service",
-        scopes=frozenset({"plugins:read", "paper:read", "research:read", "research:run"}),
+        scopes=frozenset(
+            {"plugins:read", "plugins:run", "paper:read", "research:read", "research:run"}
+        ),
         auth_method="api-key",
     )
 
@@ -346,11 +348,10 @@ def _make_paper_broker_adapter(principal: Principal | None = None) -> AlpacaRead
         raise _provider_not_configured() from None
 
 
-@app.get(
-    "/api/v1/plugins", response_model=list[PluginSummary], dependencies=[Depends(require_api_key)]
-)
-def list_plugins() -> list[PluginSummary]:
+@app.get("/api/v1/plugins", response_model=list[PluginSummary])
+def list_plugins(principal: Principal = VERIFIED_PRINCIPAL) -> list[PluginSummary]:
     """List locally installed, schema-valid plugin manifests."""
+    _require_plugin_scope(principal, "plugins:read")
     try:
         manifests = runtime.list_plugins()
     except ManifestError as exc:
@@ -373,10 +374,14 @@ def list_plugins() -> list[PluginSummary]:
 @app.post(
     "/api/v1/plugins/{plugin_id}/run",
     response_model=PluginRunResponse,
-    dependencies=[Depends(require_api_key)],
 )
-async def run_plugin(plugin_id: str, request: PluginRunRequest) -> PluginRunResponse:
+async def run_plugin(
+    plugin_id: str,
+    request: PluginRunRequest,
+    principal: Principal = VERIFIED_PRINCIPAL,
+) -> PluginRunResponse:
     """Run a local, trusted plugin with caller-provided JSON and an explicit seed."""
+    _require_plugin_scope(principal, "plugins:run")
     manifest = _find_plugin_manifest(plugin_id)
     if manifest is None:
         raise HTTPException(status_code=404, detail="plugin is not installed")
@@ -654,6 +659,12 @@ class WalkForwardRequest(BaseModel):
 def _require_oidc_scope(principal: Principal, scope: str) -> None:
     if principal.auth_method != "oidc":
         raise HTTPException(status_code=403, detail="verified user identity is required")
+    if not principal.has_scope(scope):
+        raise HTTPException(status_code=403, detail="required permission is missing")
+
+
+def _require_plugin_scope(principal: Principal, scope: str) -> None:
+    """Require a plugin capability explicitly present on the verified principal."""
     if not principal.has_scope(scope):
         raise HTTPException(status_code=403, detail="required permission is missing")
 

@@ -31,12 +31,14 @@ The following routes are implemented; all endpoint proposals in the later sectio
 | Method and path | Authentication | Behavior |
 |---|---|---|
 | `GET /healthz` | Public liveness only | Returns service status and version; no provider or credential state. |
-| `GET /api/v1/plugins` | Bearer API key | Lists validated local plugin metadata without filesystem paths. |
-| `POST /api/v1/plugins/{plugin_id}/run` | Bearer API key | Runs a repository-trusted non-strategy plugin with bounded input/output and an explicit seed; strategy plugins are refused here to prevent gate bypass. |
+| `GET /api/v1/plugins` | Bearer authentication + `plugins:read` | Lists validated local plugin metadata without filesystem paths. |
+| `POST /api/v1/plugins/{plugin_id}/run` | Bearer authentication + `plugins:run` | Runs a repository-trusted non-strategy plugin with bounded input/output and an explicit seed; strategy plugins are refused here to prevent gate bypass. |
 | `GET /api/v1/paper/dashboard?symbol=SPY&days=30` | Bearer API key | Fetches bounded historical bars and Alpaca paper-account/position data; no execution capability. |
 | `GET /api/v1/research/strategies/rsi-macd-candidate?symbol=SPY` | Bearer API key | Fetches up to 365 calendar days of daily market bars, runs the deterministic strategy subprocess, validates its typed signal, and returns the independent review-gate result; no account or position data. |
 
 The local Next.js proxy exposes two fixed GET resources: the paper dashboard and the research candidate. The candidate panel is user-triggered, starts idle, and validates the response with a strict browser schema. The proxy enforces same-origin requests, a loopback backend, a server-held bearer key, and no caching; both provider resources return 404 in production. This is a local development capability, not user identity, tenant isolation, or production authorization.
+
+Plugin discovery and execution are separate capabilities: OIDC access tokens must carry `plugins:read` to list manifests and `plugins:run` to invoke the bounded generic runner. The non-production shared API-key compatibility path is assigned both scopes for local development; it is disabled in production. No plugin permission grants broker credentials, provider clients, network access, or order-execution authority.
 
 The candidate signal is one of `bullish_candidate`, `bearish_candidate`, or `no_candidate`; the review disposition is `blocked`, `no_candidate`, or `review_required`. Both the signal and response carry `execution_enabled: false`. `review_required` permits human inspection only. The gate checks source quality, instrument/timeframe consistency, minimum history, and observation/receipt freshness; it explicitly does not assess account exposure, position sizing, stop-loss/drawdown limits, or broker execution. Generic plugin execution returns `409` for strategy-category plugins.
 
