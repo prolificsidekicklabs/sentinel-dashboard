@@ -66,6 +66,56 @@ def test_protected_plugin_routes_require_bearer_authentication() -> None:
     assert "plugin_file" not in allowed.json()[0]
 
 
+def test_plugin_discovery_and_execution_require_separate_scopes() -> None:
+    api.app.dependency_overrides[api.require_api_key] = lambda: api.Principal(
+        owner_id="scope-test-owner",
+        subject="scope-test-user",
+        scopes=frozenset({"plugins:run"}),
+        auth_method="oidc",
+        issuer="https://identity.example.test",
+    )
+    discovery_without_read_scope = asyncio.run(
+        _request("GET", "/api/v1/plugins", headers=AUTH_HEADERS)
+    )
+    execution_with_run_scope = asyncio.run(
+        _request(
+            "POST",
+            "/api/v1/plugins/moving-average/run",
+            json={
+                "seed": 1,
+                "input": {"instrument": "DEMO", "prices": [1, 2, 3], "window": 2},
+            },
+            headers=AUTH_HEADERS,
+        )
+    )
+
+    api.app.dependency_overrides[api.require_api_key] = lambda: api.Principal(
+        owner_id="scope-test-owner",
+        subject="scope-test-user",
+        scopes=frozenset({"plugins:read"}),
+        auth_method="oidc",
+        issuer="https://identity.example.test",
+    )
+    execution_without_run_scope = asyncio.run(
+        _request(
+            "POST",
+            "/api/v1/plugins/moving-average/run",
+            json={"seed": 1, "input": {}},
+            headers=AUTH_HEADERS,
+        )
+    )
+    discovery_with_read_scope = asyncio.run(
+        _request("GET", "/api/v1/plugins", headers=AUTH_HEADERS)
+    )
+
+    assert discovery_without_read_scope.status_code == 403
+    assert execution_with_run_scope.status_code == 200
+    assert execution_without_run_scope.status_code == 403
+    assert discovery_with_read_scope.status_code == 200
+    assert "required permission" in discovery_without_read_scope.json()["detail"]
+    assert "required permission" in execution_without_run_scope.json()["detail"]
+
+
 def test_api_fails_closed_when_authentication_key_is_missing_or_too_short(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
