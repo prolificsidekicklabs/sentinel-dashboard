@@ -1,4 +1,5 @@
 manifest_version: "1.0"
+plugin_api_version: "1.0"
 plugin_id: moving-average
 name: Moving Average Indicator
 version: 0.1.0

@@ -198,7 +198,7 @@ export default function ResearchCandidatePanel({ isProduction = process.env.NODE
 
           <details className="text-xs text-slate-700 dark:text-slate-300">
             <summary className="cursor-pointer font-medium">Reproducibility metadata</summary>
-            <p className="mt-2 break-all">Plugin {candidate.signal.plugin_id} v{candidate.signal.plugin_version} · review policy {candidate.review.policy_id} v{candidate.review.policy_version} · output SHA-256 {candidate.output_sha256}</p>
+            <p className="mt-2 break-all">Plugin {candidate.signal.plugin_id} v{candidate.signal.plugin_version} · API {candidate.plugin_api_version} · review policy {candidate.review.policy_id} v{candidate.review.policy_version} · output SHA-256 {candidate.output_sha256} · record {candidate.record_id}</p>
           </details>
         </div>
       )}

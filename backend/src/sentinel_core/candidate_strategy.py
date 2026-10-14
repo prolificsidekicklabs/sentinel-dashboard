@@ -46,7 +46,7 @@ class CandidateSignal(BaseModel):
     as_of: datetime
     bar_count: int = Field(ge=0, le=1000)
     candidate: CandidateClass
-    reason_codes: list[str] = Field(default_factory=list)
+    reason_codes: tuple[str, ...] = ()
     indicators: TechnicalIndicatorValues | None = None
     execution_enabled: Literal[False] = False
 
@@ -69,14 +69,14 @@ class CandidateReview(BaseModel):
     eligible_for_human_review: bool
     execution_enabled: Literal[False] = False
     evaluated_at: datetime
-    reason_codes: list[str]
-    unassessed_risks: list[str] = Field(
-        default_factory=lambda: [
+    reason_codes: tuple[str, ...]
+    unassessed_risks: tuple[str, ...] = Field(
+        default=(
             "account_exposure_not_evaluated",
             "position_sizing_not_evaluated",
             "stop_loss_and_drawdown_not_evaluated",
             "broker_execution_not_enabled",
-        ]
+        )
     )
 
     @field_validator("evaluated_at")
@@ -163,15 +163,15 @@ class CandidateRiskGate:
         elif signal.candidate is CandidateClass.NONE:
             disposition = "no_candidate"
             eligible = False
-            reasons = checks + signal.reason_codes + ["no_candidate_conditions_met"]
+            reasons = checks + list(signal.reason_codes) + ["no_candidate_conditions_met"]
         else:
             disposition = "review_required"
             eligible = True
-            reasons = checks + signal.reason_codes + ["human_review_required"]
+            reasons = checks + list(signal.reason_codes) + ["human_review_required"]
 
         return CandidateReview(
             disposition=disposition,
             eligible_for_human_review=eligible,
             evaluated_at=now,
-            reason_codes=list(dict.fromkeys(reasons)),
+            reason_codes=tuple(dict.fromkeys(reasons)),
         )

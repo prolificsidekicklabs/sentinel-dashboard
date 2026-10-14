@@ -44,6 +44,7 @@ class PluginManifest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     manifest_version: str = Field(pattern=r"^1\.0$")
+    plugin_api_version: Literal["1.0"]
     plugin_id: str = Field(min_length=3, max_length=80)
     name: str = Field(min_length=1, max_length=100)
     version: str = Field(min_length=5, max_length=80)

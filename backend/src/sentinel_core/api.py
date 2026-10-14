@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import hmac
 import os
+import sqlite3
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -49,7 +50,7 @@ from sentinel_core.auth import (
     Principal,
 )
 from sentinel_core.candidate_strategy import CandidateReview, CandidateRiskGate, CandidateSignal
-from sentinel_core.contracts import PluginRunRequest
+from sentinel_core.contracts import PluginMarketBarV1, PluginMarketContextV1, PluginRunRequest
 from sentinel_core.manifest import ManifestError, PluginManifest, PluginType
 from sentinel_core.oci_sandbox import OCISandboxRunner
 from sentinel_core.risk import PaperRiskEvaluator
@@ -204,6 +205,7 @@ class PluginSummary(BaseModel):
     plugin_id: str
     name: str
     version: str
+    plugin_api_version: str
     plugin_type: str
     trust_level: str
     deterministic: bool
@@ -218,6 +220,7 @@ class PluginRunResponse(BaseModel):
 
     plugin_id: str
     plugin_version: str
+    plugin_api_version: str
     seed: int
     result: dict[str, Any]
     output_sha256: str
@@ -304,11 +307,13 @@ class CandidateEvaluationResponse(BaseModel):
 
     mode: Literal["research-candidate"] = "research-candidate"
     execution_enabled: Literal[False] = False
+    plugin_api_version: Literal["1.0"] = "1.0"
     captured_at: datetime
     market: CandidateMarketMetadata
     signal: CandidateSignal
     review: CandidateReview
     output_sha256: str
+    record_id: str
 
 
 @app.get("/healthz")
@@ -329,6 +334,33 @@ def _find_plugin_manifest(plugin_id: str) -> PluginManifest | None:
         )
     except ManifestError as exc:
         raise HTTPException(status_code=500, detail="a local plugin manifest is invalid") from exc
+
+
+def _plugin_market_context(market: MarketSnapshot) -> PluginMarketContextV1:
+    """Project a provider snapshot into the account-free, versioned plugin contract."""
+    return PluginMarketContextV1(
+        plugin_api_version="1.0",
+        instrument_id=market.instrument_id,
+        timeframe=market.timeframe,
+        source_id=market.source_id,
+        quality=market.quality.value,
+        observed_at=market.observed_at,
+        received_at=market.received_at,
+        bars=tuple(
+            PluginMarketBarV1(
+                instrument_id=bar.instrument_id,
+                observed_at=bar.observed_at,
+                open=bar.open,
+                high=bar.high,
+                low=bar.low,
+                close=bar.close,
+                volume=bar.volume,
+                currency=bar.currency,
+                source_id=bar.source_id,
+            )
+            for bar in market.bars
+        ),
+    )
 
 
 def _make_market_adapter(principal: Principal | None = None) -> AlpacaMarketDataAdapter:
@@ -361,6 +393,7 @@ def list_plugins(principal: Principal = VERIFIED_PRINCIPAL) -> list[PluginSummar
             plugin_id=manifest.plugin_id,
             name=manifest.name,
             version=manifest.version,
+            plugin_api_version=manifest.plugin_api_version,
             plugin_type=manifest.plugin_type.value,
             trust_level=manifest.trust_level,
             deterministic=manifest.deterministic,
@@ -416,6 +449,7 @@ async def run_plugin(
     return PluginRunResponse(
         plugin_id=execution.plugin_id,
         plugin_version=execution.plugin_version,
+        plugin_api_version=execution.plugin_api_version,
         seed=execution.seed,
         result=execution.result.model_dump(mode="json"),
         output_sha256=execution.output_sha256,
@@ -461,22 +495,17 @@ async def evaluate_rsi_macd_candidate(
             detail="market data provider returned an unexpected instrument or timeframe",
         )
 
-    plugin_request = PluginRunRequest(
-        seed=0,
-        input={
-            "instrument_id": market.instrument_id,
-            "timeframe": market.timeframe,
-            "observed_at": market.observed_at.astimezone(UTC).isoformat(),
-            "bars": [
-                {
-                    "instrument_id": bar.instrument_id,
-                    "observed_at": bar.observed_at.astimezone(UTC).isoformat(),
-                    "close": str(bar.close),
-                }
-                for bar in market.bars
-            ],
-        },
-    )
+    try:
+        plugin_request = PluginRunRequest(
+            plugin_api_version=manifest.plugin_api_version,
+            seed=0,
+            input={},
+            market_context=_plugin_market_context(market),
+        )
+    except (TypeError, ValueError, ValidationError) as exc:
+        raise HTTPException(
+            status_code=502, detail="market snapshot failed the plugin contract"
+        ) from exc
     try:
         execution = await runtime.run(CANDIDATE_PLUGIN_ID, plugin_request)
     except PluginNotFound as exc:
@@ -513,20 +542,41 @@ async def evaluate_rsi_macd_candidate(
             status_code=502, detail="strategy returned an invalid typed signal"
         ) from exc
     review = candidate_risk_gate.evaluate(signal, market, evaluated_at=now)
+    market_metadata = CandidateMarketMetadata(
+        instrument_id=market.instrument_id,
+        timeframe=market.timeframe,
+        source_id=market.source_id,
+        quality=market.quality.value,
+        observed_at=market.observed_at,
+        received_at=market.received_at,
+        bar_count=len(market.bars),
+    )
+    try:
+        record_id = _store().append_audit_event(
+            principal.owner_id,
+            "research.candidate.evaluated",
+            {
+                "plugin_id": execution.plugin_id,
+                "plugin_version": execution.plugin_version,
+                "plugin_api_version": execution.plugin_api_version,
+                "market": market_metadata.model_dump(mode="json"),
+                "signal": signal.model_dump(mode="json"),
+                "review": review.model_dump(mode="json"),
+                "output_sha256": execution.output_sha256,
+            },
+        )
+    except (StorageError, sqlite3.Error, OSError) as exc:
+        raise HTTPException(
+            status_code=503, detail="candidate result could not be durably recorded"
+        ) from exc
     return CandidateEvaluationResponse(
         captured_at=now,
-        market=CandidateMarketMetadata(
-            instrument_id=market.instrument_id,
-            timeframe=market.timeframe,
-            source_id=market.source_id,
-            quality=market.quality.value,
-            observed_at=market.observed_at,
-            received_at=market.received_at,
-            bar_count=len(market.bars),
-        ),
+        plugin_api_version=execution.plugin_api_version,
+        market=market_metadata,
         signal=signal,
         review=review,
         output_sha256=execution.output_sha256,
+        record_id=record_id,
     )
 
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-import random
 from pathlib import Path
 from typing import Any
 
@@ -21,12 +20,11 @@ MovingAveragePlugin = PLUGIN_MODULE.MovingAveragePlugin
 
 
 def _context(input_data: dict[str, Any]) -> PluginContext:
-    return PluginContext(
+    return PluginContext.create(
         plugin_id="moving-average",
         plugin_version="0.1.0",
         seed=7,
         input_data=input_data,
-        rng=random.Random(7),
     )
 
 

@@ -41,6 +41,7 @@ def _write_plugin(plugin_root: Path, *, permission: str = "", source: str | None
     permissions = f"[{permission}]" if permission else "[]"
     (plugin_dir / "sentinel_manifest.yaml").write_text(
         "manifest_version: '1.0'\n"
+        "plugin_api_version: '1.0'\n"
         "plugin_id: seeded-test\n"
         "name: Seeded test plugin\n"
         "version: 0.1.0\n"
